@@ -1,0 +1,60 @@
+name: mdr
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  MdrKit:
+    path: .
+targets:
+  mdr:
+    type: application
+    platform: macOS
+    sources:
+      - App/macOS
+    dependencies:
+      - package: MdrKit
+    info:
+      path: App/macOS/Info.plist
+      properties:
+        CFBundleName: mdr
+        CFBundleDisplayName: mdr
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHighResolutionCapable: true
+        NSPrincipalClass: NSApplication
+        NSSupportsAutomaticTermination: false
+        MDRDevTokensPath: $(MDR_DEV_TOKENS_PATH)
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).Document
+            LSItemContentTypes:
+              - net.daringfireball.markdown
+              - public.plain-text
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown Document
+            UTTypeConformsTo:
+              - public.plain-text
+            UTTypeTagSpecification:
+              public.filename-extension: [md, markdown, mdown, mkd]
+              public.mime-type: [text/markdown]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.mdr.app
+        PRODUCT_NAME: mdr
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: false
+        GENERATE_INFOPLIST_FILE: false
+      configs:
+        Debug:
+          MDR_DEV_TOKENS_PATH: $(SRCROOT)/Sources/MdrKit/Resources/tokens.json
+        Release:
+          MDR_DEV_TOKENS_PATH: ""
