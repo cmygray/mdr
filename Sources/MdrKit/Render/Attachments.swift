@@ -59,45 +59,23 @@ open class BlockAttachment: NSTextAttachment {
     }
 
     private var provider: NSTextAttachmentViewProvider?
-    private var refreshAttempts = 0
 
     public override func viewProvider(
         for parentView: PlatformView?,
         location: NSTextLocation,
         textContainer: NSTextContainer?
     ) -> NSTextAttachmentViewProvider? {
-        let layoutManager = textContainer?.textLayoutManager
+        // 다시 배치할 때마다 view를 새로 만들지 않도록 provider를 재사용합니다.
         if provider == nil {
-            guard let created = Self.providerFactory?(self, parentView, layoutManager, location) else { return nil }
+            guard let created = Self.providerFactory?(self, parentView, textContainer?.textLayoutManager, location) else {
+                return nil
+            }
             created.tracksTextAttachmentViewBounds = false
             // 이 메서드를 재정의하면 TextKit이 `loadView()`를 불러 주지 않습니다. 직접 부릅니다.
             created.loadView()
             provider = created
         }
-        // TextKit 2(macOS 26 기준)는 문단을 처음 배치한 회차에는 view를 화면에 붙이지 않고,
-        // 다음 배치 회차에 붙입니다. 그대로 두면 스크롤을 멈춘 자리의 블록이 비어 보이므로
-        // 한 번 더 배치하게 합니다. 붙지 않는 상황에서 무한히 반복하지 않도록 횟수를 제한합니다.
-        if ProcessInfo.processInfo.environment["MDR_NO_REFRESH"] == nil, provider?.view?.superview == nil, refreshAttempts < 3 {
-            refreshAttempts += 1
-            Self.scheduleViewportRefresh(for: self, layoutManager)
-        }
         return provider
-    }
-
-    private static var refreshQueue: [BlockAttachment] = []
-
-    private static func scheduleViewportRefresh(for attachment: BlockAttachment, _ layoutManager: NSTextLayoutManager?) {
-        guard let layoutManager else { return }
-        refreshQueue.append(attachment)
-        guard refreshQueue.count == 1 else { return }
-        DispatchQueue.main.async {
-            let waiting = refreshQueue
-            refreshQueue = []
-            layoutManager.textViewportLayoutController.layoutViewport()
-            for attachment in waiting where attachment.provider?.view?.superview != nil {
-                attachment.refreshAttempts = 0
-            }
-        }
     }
 }
 
@@ -326,7 +304,6 @@ public final class TableLayout {
 public final class ImageAttachment: NSTextAttachment {
     public let url: URL
     public let pixelSize: CGSize
-    private var loaded: PlatformImage?
 
     /// 파일이 없거나 이미지가 아니면 nil입니다.
     public init?(url: URL) {
@@ -340,6 +317,13 @@ public final class ImageAttachment: NSTextAttachment {
         self.url = url
         pixelSize = CGSize(width: width, height: height)
         super.init(data: nil, ofType: nil)
+        // `image`를 지정해 두어야 TextKit이 직접 그립니다(메서드 재정의만으로는 그리지 않습니다).
+        // 참조만 걸어 두므로 파일은 처음 그릴 때 읽습니다.
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        image = NSImage(byReferencing: url)
+        #else
+        image = UIImage(contentsOfFile: url.path)
+        #endif
     }
 
     @available(*, unavailable)
@@ -347,6 +331,7 @@ public final class ImageAttachment: NSTextAttachment {
         fatalError("init(coder:) is not supported")
     }
 
+    /// 픽셀 크기를 pt로 보고, 쓸 수 있는 폭을 넘으면 비율을 지켜 줄입니다.
     public func size(forAvailableWidth width: CGFloat) -> CGSize {
         let scale = min(1, width / pixelSize.width)
         return CGSize(width: (pixelSize.width * scale).rounded(), height: (pixelSize.height * scale).rounded())
@@ -360,29 +345,5 @@ public final class ImageAttachment: NSTextAttachment {
         position: CGPoint
     ) -> CGRect {
         CGRect(origin: .zero, size: size(forAvailableWidth: max(proposedLineFragment.width - position.x, 40)))
-    }
-
-    private func loadImage() -> PlatformImage? {
-        if loaded == nil {
-            #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-            loaded = NSImage(contentsOf: url)
-            #else
-            loaded = UIImage(contentsOfFile: url.path)
-            #endif
-        }
-        return loaded
-    }
-
-    public override func image(
-        for bounds: CGRect,
-        attributes: [NSAttributedString.Key: Any],
-        location: NSTextLocation,
-        textContainer: NSTextContainer?
-    ) -> PlatformImage? {
-        loadImage()
-    }
-
-    public override func image(forBounds imageBounds: CGRect, textContainer: NSTextContainer?, characterIndex charIndex: Int) -> PlatformImage? {
-        loadImage()
     }
 }

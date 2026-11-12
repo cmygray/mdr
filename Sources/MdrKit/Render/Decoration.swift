@@ -81,7 +81,7 @@ public final class DecoratedLayoutFragment: NSTextLayoutFragment {
         // view로 그리는 블록은 글자 쪽에서 그릴 것이 없습니다. 그대로 그리게 두면 TextKit이
         // 내용 없는 첨부의 기본 문서 아이콘을 view 밑에 깝니다. (첨부에 이미지를 주면 아이콘은
         // 사라지지만 TextKit이 view provider를 아예 요청하지 않습니다.)
-        if paragraph.attribute(.attachment, at: 0, effectiveRange: nil) is BlockAttachment {
+        if paragraph.length <= 2, paragraph.attribute(.attachment, at: 0, effectiveRange: nil) is BlockAttachment {
             return
         }
         super.draw(at: point, in: context)
@@ -143,13 +143,54 @@ public final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 }
 
-/// `NSTextLayoutManager.delegate`로 지정하면 모든 문단을 `DecoratedLayoutFragment`로 그립니다.
+/// `NSTextLayoutManager.delegate`로 지정하면 모든 문단을 `DecoratedLayoutFragment`로 그리고,
+/// 한글 어절이 영문·숫자와 맞닿은 자리에서 끊기지 않게 합니다.
 public final class DecorationLayoutDelegate: NSObject, NSTextLayoutManagerDelegate {
+    /// false이면 줄바꿈 자리를 고치지 않습니다(토큰 `body.lineBreak`가 `hangulWord`가 아닐 때).
+    public var keepsWordsWithHangulTogether = true
+
     public func textLayoutManager(
         _ textLayoutManager: NSTextLayoutManager,
         textLayoutFragmentFor location: NSTextLocation,
         in textElement: NSTextElement
     ) -> NSTextLayoutFragment {
         DecoratedLayoutFragment(textElement: textElement, range: textElement.elementRange)
+    }
+
+    /// `hangulWordPriority`는 한글과 한글 사이만 붙여 둡니다. "API는", "3단계", "제1저자"처럼
+    /// 영문·숫자와 한글이 맞닿은 자리는 여전히 끊을 수 있어서 조사가 다음 줄 첫머리로 떨어집니다.
+    /// 그런 자리의 줄바꿈을 거절해 어절을 통째로 다음 줄로 보냅니다.
+    public func textLayoutManager(
+        _ textLayoutManager: NSTextLayoutManager,
+        shouldBreakLineBefore location: NSTextLocation,
+        hyphenating: Bool
+    ) -> Bool {
+        guard keepsWordsWithHangulTogether, !hyphenating,
+              let storage = textLayoutManager.textContentManager as? NSTextContentStorage,
+              let string = storage.textStorage?.string as NSString? else { return true }
+        let index = storage.offset(from: storage.documentRange.location, to: location)
+        guard index > 0, index < string.length else { return true }
+        let before = string.character(at: index - 1)
+        let after = string.character(at: index)
+        if Self.isHangul(after), Self.attachesToHangul(before) { return false }
+        if Self.isHangul(before), Self.isASCIIAlphanumeric(after) { return false }
+        return true
+    }
+
+    private static func isHangul(_ unit: unichar) -> Bool {
+        (0xAC00...0xD7A3).contains(unit) || (0x3131...0x318E).contains(unit)
+    }
+
+    private static func isASCIIAlphanumeric(_ unit: unichar) -> Bool {
+        (0x30...0x39).contains(unit) || (0x41...0x5A).contains(unit) || (0x61...0x7A).contains(unit)
+    }
+
+    /// 뒤따르는 한글(조사 등)과 한 어절을 이루는 글자입니다. 영문·숫자와 닫는 괄호·따옴표·퍼센트.
+    private static func attachesToHangul(_ unit: unichar) -> Bool {
+        if isASCIIAlphanumeric(unit) { return true }
+        switch unit {
+        case 0x29, 0x5D, 0x7D, 0x22, 0x27, 0x25, 0x201D, 0x2019: return true
+        default: return false
+        }
     }
 }

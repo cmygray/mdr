@@ -25,6 +25,8 @@ final class StyleStore {
     private(set) var tokensURL: URL = StyleTokens.bundledURL
     /// 마지막으로 읽은 토큰 파일에 오류가 있으면 그 내용입니다. 이때는 직전의 정상 값을 계속 씁니다.
     private(set) var lastError: String?
+    /// 실행 중에 토큰 파일을 다시 읽은 횟수(처음 읽은 것은 세지 않습니다)
+    private(set) var reloadCount = 0
     private var watcher: FileWatcher?
 
     var settings = ReaderSettings() {
@@ -100,6 +102,7 @@ final class StyleStore {
     }
 
     private func reload(notify: Bool) {
+        if notify { reloadCount += 1 }
         do {
             let loaded = try StyleTokens.load(from: tokensURL)
             let changed = loaded != tokens || lastError != nil

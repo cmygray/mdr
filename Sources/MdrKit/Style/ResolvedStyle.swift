@@ -140,7 +140,12 @@ public final class ResolvedStyle {
     }
 
     public var lineBreakStrategy: NSParagraphStyle.LineBreakStrategy {
-        tokens.body.lineBreak == "hangulWord" ? [.hangulWordPriority, .pushOut] : .standard
+        switch tokens.body.lineBreak {
+        case "hangulWord": return [.hangulWordPriority, .pushOut]
+        case "hangulWordOnly": return [.hangulWordPriority]
+        case "none": return []
+        default: return .standard
+        }
     }
 
     /// 줄 높이를 고정하면 TextKit은 남는 높이를 모두 글자 위에 둡니다. 그 절반입니다.

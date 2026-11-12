@@ -153,6 +153,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         self.style = style
         renderedScheme = style.options.scheme
 
+        layoutDelegate.keepsWordsWithHangulTogether = style.tokens.body.lineBreak == "hangulWord"
         let rendered = DocumentRenderer(style: style, baseURL: document.fileURL).render(document.parsed)
         self.rendered = rendered
         LaunchClock.mark("rendered")
@@ -284,11 +285,23 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
             }
             return true
         }
-        if url.isFileURL, ["md", "markdown", "mdown", "mkd"].contains(url.pathExtension.lowercased()) {
-            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
-            return true
+        // 문서 안의 링크는 믿을 수 없는 입력입니다(2단계부터는 원격 문서도 엽니다).
+        // 웹·메일 링크만 바깥 앱으로 넘기고, 로컬 파일은 마크다운이면 이 앱으로 열고
+        // 그 밖에는 실행하지 않고 Finder에서 보여 주기만 합니다. 나머지 scheme은 열지 않습니다.
+        switch url.scheme?.lowercased() {
+        case "http", "https", "mailto":
+            NSWorkspace.shared.open(url)
+        case "file":
+            if ["md", "markdown", "mdown", "mkd"].contains(url.pathExtension.lowercased()) {
+                NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+            } else if FileManager.default.fileExists(atPath: url.path) {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            } else {
+                NSSound.beep()
+            }
+        default:
+            NSSound.beep()
         }
-        NSWorkspace.shared.open(url)
         return true
     }
 }

@@ -111,7 +111,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         didDisplay = true
         _ = splitController.view
         window?.layoutIfNeeded()
-        let saved = Automation.shared.isActive ? nil : readerDocument.fileURL.flatMap(ScrollPositionStore.anchor(for:))
+        let saved = remembersPosition ? readerDocument.fileURL.flatMap(ScrollPositionStore.anchor(for:)) : nil
         readerController.display(readerDocument, restoring: saved)
         window?.makeFirstResponder(readerController.textView)
         window?.displayIfNeeded()
@@ -142,8 +142,13 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
     }
 
-    private func savePosition() {
-        guard !Automation.shared.isActive, didDisplay,
+    /// 자동화 실행은 `-persist YES`를 줬을 때만 읽던 자리를 저장하고 복원합니다.
+    private var remembersPosition: Bool {
+        !Automation.shared.isActive || Automation.shared.persistsPosition
+    }
+
+    func savePosition() {
+        guard remembersPosition, didDisplay,
               let url = readerDocument?.fileURL, let anchor = readerController.currentAnchor() else { return }
         ScrollPositionStore.save(anchor, for: url)
     }

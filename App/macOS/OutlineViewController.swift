@@ -6,7 +6,9 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
     private var items: [OutlineItem] = []
-    private var minLevel = 1
+    /// 각 제목의 들여쓰기 단계입니다. 제목 단계 숫자가 아니라 실제로 몇 겹 안에 있는지로 정합니다.
+    /// (h1 바로 아래에 h6이 와도 한 단계만 들입니다.)
+    private var depths: [Int] = []
     private var isSyncingSelection = false
 
     var onSelect: ((OutlineItem) -> Void)?
@@ -36,7 +38,12 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
 
     func update(_ items: [OutlineItem]) {
         self.items = items
-        minLevel = items.map(\.level).min() ?? 1
+        var stack: [Int] = []
+        depths = items.map { item in
+            while let last = stack.last, last >= item.level { stack.removeLast() }
+            stack.append(item.level)
+            return stack.count - 1
+        }
         tableView.reloadData()
     }
 
@@ -80,7 +87,7 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
             cell.identifier = identifier
         }
         let item = items[row]
-        cell.configure(title: item.title, depth: item.level - minLevel)
+        cell.configure(title: item.title, depth: depths[row])
         return cell
     }
 

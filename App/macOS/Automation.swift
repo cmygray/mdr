@@ -41,7 +41,7 @@ enum LaunchClock {
 ///
 ///     mdr.app/Contents/MacOS/mdr FILE -snapshot out.png [-size 1000x690] [-appearance dark]
 ///         [-scrollTo "제목 일부"] [-scrollFraction 0.5] [-sidebar hide] [-fontScale 1.25]
-///         [-metrics out.json] [-wait 0.5] [-exit YES]
+///         [-codeScroll 200] [-persist YES] [-metrics out.json] [-wait 0.5] [-exit YES]
 final class Automation {
     static let shared = Automation()
 
@@ -55,6 +55,10 @@ final class Automation {
     private(set) var fontScale: Double?
     private(set) var wait: TimeInterval = 0.5
     private(set) var exitWhenDone = false
+    /// 자동화 실행에서도 읽던 자리를 저장하고 복원합니다(위치 기억 검증용).
+    private(set) var persistsPosition = false
+    /// 화면에 보이는 첫 코드 블록을 가로로 이만큼 스크롤합니다(가로 스크롤 검증용).
+    private(set) var codeScroll: CGFloat?
 
     var isActive: Bool {
         snapshotURL != nil || metricsURL != nil || exitWhenDone
@@ -84,6 +88,8 @@ final class Automation {
             case "-fontScale": fontScale = Double(value)
             case "-wait": wait = Double(value) ?? wait
             case "-exit": exitWhenDone = value == "YES"
+            case "-persist": persistsPosition = value == "YES"
+            case "-codeScroll": codeScroll = Double(value).map { CGFloat($0) }
             default: break
             }
         }
@@ -93,7 +99,9 @@ final class Automation {
         guard isActive else { return }
         let reader = controller.readerController
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
-            if let scrollHeading, let item = reader.rendered?.outline.first(where: { $0.title.contains(scrollHeading) }) {
+            let outline = reader.rendered?.outline ?? []
+            if let scrollHeading, let item = outline.first(where: { $0.title.hasPrefix(scrollHeading) })
+                ?? outline.first(where: { $0.title.contains(scrollHeading) }) {
                 reader.scroll(toCharacterIndex: item.location)
             } else if let scrollFraction, let length = reader.rendered?.text.length {
                 reader.scroll(toCharacterIndex: Int(Double(length) * scrollFraction))
@@ -105,19 +113,43 @@ final class Automation {
     }
 
     private func finish(_ controller: ReaderWindowController) {
+        var codeBlock: [String: Any] = [:]
+        if let codeScroll, let view = Self.firstVisibleCodeBlock(in: controller.readerController.textView) {
+            view.scrollHorizontally(to: codeScroll)
+            controller.window?.displayIfNeeded()
+            codeBlock = ["contentWidth": view.contentWidth, "visibleWidth": view.bounds.width, "scrolledTo": view.horizontalOffset]
+        }
         if let snapshotURL, let window = controller.window {
             snapshot(window, to: snapshotURL)
         }
         if let metricsURL {
             var metrics = Metrics.collect(from: controller.readerController)
             metrics["launchMs"] = LaunchClock.snapshot
+            metrics["tokenReloads"] = StyleStore.shared.reloadCount
+            if !codeBlock.isEmpty { metrics["codeBlock"] = codeBlock }
             if let data = try? JSONSerialization.data(withJSONObject: metrics, options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: metricsURL)
             }
         }
         if exitWhenDone {
+            controller.savePosition()
+            UserDefaults.standard.synchronize()
             exit(0)
         }
+    }
+
+    private static func firstVisibleCodeBlock(in view: NSView) -> CodeBlockView? {
+        let visible = view.visibleRect
+        var found: [CodeBlockView] = []
+        func walk(_ candidate: NSView) {
+            if let block = candidate as? CodeBlockView {
+                if block.convert(block.bounds, to: view).intersects(visible) { found.append(block) }
+                return
+            }
+            candidate.subviews.forEach(walk)
+        }
+        walk(view)
+        return found.min { $0.convert($0.bounds, to: view).minY < $1.convert($1.bounds, to: view).minY }
     }
 
     /// 창 전체(제목 막대 포함)를 PNG로 저장합니다.
@@ -159,6 +191,7 @@ enum Metrics {
         var lineLengths: [Int] = []
         var hangulLineLengths: [Int] = []
         var breaksInsideWord = 0
+        var insideWordSamples: [String] = []
         var breaks = 0
         var bodyLineHeights: Set<CGFloat> = []
         let bodySize = style.em
@@ -188,6 +221,11 @@ enum Metrics {
                    let after = Unicode.Scalar(text.character(at: end)),
                    CharacterSet.alphanumerics.contains(before), CharacterSet.alphanumerics.contains(after) {
                     breaksInsideWord += 1
+                    if insideWordSamples.count < 12 {
+                        let from = max(0, end - 12)
+                        insideWordSamples.append(text.substring(with: NSRange(location: from, length: end - from)) + "⏎"
+                            + text.substring(with: NSRange(location: end, length: min(12, text.length - end))))
+                    }
                 }
             }
             return true
@@ -219,6 +257,8 @@ enum Metrics {
             "charactersPerHangulLine": summary(hangulLineLengths),
             "lineBreaks": breaks,
             "lineBreaksInsideWord": breaksInsideWord,
+            "lineBreaksInsideWordSamples": insideWordSamples,
+            "topCharacterIndex": reader.currentAnchor()?.index ?? -1,
             "outlineCount": reader.rendered?.outline.count ?? 0,
             "textLength": reader.rendered?.text.length ?? 0,
             "documentHeight": reader.textView.frame.height,

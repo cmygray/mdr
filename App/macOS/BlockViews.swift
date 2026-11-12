@@ -101,6 +101,17 @@ final class CodeBlockView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
+    /// 가장 긴 줄까지 포함한 내용의 폭
+    var contentWidth: CGFloat { textView.frame.width }
+
+    var horizontalOffset: CGFloat { scrollView.contentView.bounds.minX }
+
+    func scrollHorizontally(to x: CGFloat) {
+        let limit = max(0, textView.frame.width - scrollView.contentSize.width)
+        scrollView.contentView.scroll(to: NSPoint(x: min(max(x, 0), limit), y: 0))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         // 코드가 블록보다 좁아도 배경 전체를 선택 영역으로 쓰도록 폭을 맞춥니다.
