@@ -70,6 +70,9 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     private static let exactLayoutLimit = 2_000_000
 
     private var lastAnchor: ReadingAnchor?
+    /// 폭이 바뀌는 동안 붙잡아 둔 읽던 자리
+    private var heldAnchor: ReadingAnchor?
+    private var releaseWork: DispatchWorkItem?
     private var laidOutWidth: CGFloat = 0
     private var isAdjustingScroll = false
     private var renderedScheme: ColorScheme?
@@ -140,11 +143,31 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         super.viewDidLayout()
         let width = scrollView.contentSize.width
         guard width > 0, abs(width - laidOutWidth) > 0.5 else { return }
+        let isFirstLayout = laidOutWidth == 0
         laidOutWidth = width
-        updateInsets()
-        if let lastAnchor {
-            scroll(to: lastAnchor)
+        if isFirstLayout {
+            // 처음 크기가 정해질 때는 되돌릴 자리가 없습니다. 복원할 자리가 있으면 그것만 맞춥니다.
+            updateInsets()
+            if let lastAnchor { scroll(to: lastAnchor) }
+            return
         }
+        // 폭이 바뀌는 동안(창 크기 조절, 사이드바 애니메이션)에는 배치가 스크롤 위치를 잠깐씩 움직입니다.
+        // 그 값을 읽던 자리로 기록하지 않도록, 바뀌기 전의 자리를 붙잡아 두고 폭이 안정될 때까지 그 자리로 되돌립니다.
+        if heldAnchor == nil {
+            heldAnchor = lastAnchor ?? currentAnchor()
+        }
+        updateInsets()
+        if let heldAnchor {
+            scroll(to: heldAnchor)
+        }
+        releaseWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let anchor = self.heldAnchor else { return }
+            self.scroll(to: anchor)
+            self.heldAnchor = nil
+        }
+        releaseWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
     }
 
     // MARK: Rendering
@@ -278,7 +301,9 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
             }
             let top = -scrollView.contentInsets.top
             let bottom = max(top, textView.frame.height - clip.bounds.height + scrollView.contentInsets.bottom)
-            let target = min(max(frame.minY + delta + textView.textContainerOrigin.y + top, top), bottom)
+            // 문서 맨 위(첫 문단보다 위쪽 여백에 있던 경우)는 여백 크기가 바뀌어도 항상 맨 위입니다.
+            let isTop = anchor.index == 0 && anchor.delta <= 0 && !alignToFirstLine
+            let target = isTop ? top : min(max(frame.minY + delta + textView.textContainerOrigin.y + top, top), bottom)
             if abs(clip.bounds.minY - target) < 0.5 { break }
             clip.scroll(to: NSPoint(x: 0, y: target))
             scrollView.reflectScrolledClipView(clip)
@@ -294,7 +319,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     }
 
     @objc private func clipBoundsDidChange() {
-        guard !isAdjustingScroll, abs(scrollView.contentSize.width - laidOutWidth) < 0.5,
+        guard !isAdjustingScroll, heldAnchor == nil, abs(scrollView.contentSize.width - laidOutWidth) < 0.5,
               let anchor = currentAnchor() else { return }
         lastAnchor = anchor
         onPositionChange?(anchor)

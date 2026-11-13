@@ -374,7 +374,8 @@ public final class DocumentRenderer {
             minColumnWidth: CGFloat(token.minColumnWidth) * em,
             maxColumnWidth: CGFloat(token.maxColumnWidth) * em,
             overflowFactor: CGFloat(token.overflowFactor),
-            halfLeading: style.halfLeading(for: style.font(.body, size: size, weight: style.tokens.body.weight), lineHeight: lineHeight)
+            halfLeading: style.halfLeading(for: style.font(.body, size: size, weight: style.tokens.body.weight), lineHeight: lineHeight),
+            keepsWordsWithHangulTogether: style.tokens.body.lineBreak == "hangulWord"
         ), environment: context.indent == 0 ? environment : nil)
         emitAttachment(attachment, spacing: CGFloat(token.spacing) * em, context: context)
     }

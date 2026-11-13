@@ -135,14 +135,18 @@ public final class TableAttachment: BlockAttachment {
         public var overflowFactor: CGFloat
         /// 줄 높이를 고정해서 칸의 첫 줄 위에 생기는 여분의 절반입니다. 그릴 때 이만큼 올립니다.
         public var halfLeading: CGFloat
+        /// 본문과 같은 어절 줄바꿈 규칙을 칸에도 적용할지
+        public var keepsWordsWithHangulTogether: Bool
     }
 
     /// 첫 행이 머리글입니다.
     public let rows: [[NSAttributedString]]
+    public let cells: [[TableCell]]
     public let style: Style
     /// nil이면 본문 폭을 넘지 않습니다(목록이나 인용문 안의 표).
     public let environment: BlockLayoutEnvironment?
     private var cachedLayout: TableLayout?
+    private let layoutDelegate = DecorationLayoutDelegate()
 
     /// 가장 최근에 계산한 배치입니다. view가 그릴 때 씁니다.
     public var currentLayout: TableLayout? { cachedLayout }
@@ -151,6 +155,9 @@ public final class TableAttachment: BlockAttachment {
         self.rows = rows
         self.style = style
         self.environment = environment
+        layoutDelegate.keepsWordsWithHangulTogether = style.keepsWordsWithHangulTogether
+        let delegate = layoutDelegate
+        cells = rows.map { row in row.map { TableCell(string: $0, delegate: delegate) } }
         super.init()
     }
 
@@ -160,9 +167,9 @@ public final class TableAttachment: BlockAttachment {
         if let cachedLayout, abs(cachedLayout.columnWidth - width) < 0.5, abs(cachedLayout.availableWidth - widest) < 0.5 {
             return cachedLayout
         }
-        var layout = TableLayout(rows: rows, style: style, columnWidth: width, availableWidth: width)
+        var layout = TableLayout(cells: cells, style: style, columnWidth: width, availableWidth: width)
         if layout.contentSize.width > width + 0.5, widest > width {
-            layout = TableLayout(rows: rows, style: style, columnWidth: width, availableWidth: widest)
+            layout = TableLayout(cells: cells, style: style, columnWidth: width, availableWidth: widest)
         }
         cachedLayout = layout
         return layout
@@ -175,7 +182,68 @@ public final class TableAttachment: BlockAttachment {
     }
 }
 
-/// 표의 열 너비와 행 높이를 정하고, 현재 그래픽 컨텍스트에 그립니다. 좌표는 위에서 아래로 자랍니다.
+/// 표의 칸 하나입니다. 본문과 같은 TextKit 2 배치를 써서 줄바꿈 규칙과 인라인 코드 배경이 본문과 같게 나옵니다.
+public final class TableCell {
+    public let string: NSAttributedString
+    private let storage = NSTextContentStorage()
+    private let manager = NSTextLayoutManager()
+    private let container = NSTextContainer(size: .zero)
+
+    init(string: NSAttributedString, delegate: NSTextLayoutManagerDelegate) {
+        self.string = string
+        container.lineFragmentPadding = 0
+        manager.textContainer = container
+        manager.delegate = delegate
+        storage.addTextLayoutManager(manager)
+        storage.textStorage = NSTextStorage(attributedString: string)
+    }
+
+    /// 줄바꿈 없이 한 줄로 놓았을 때의 폭
+    public private(set) lazy var naturalWidth: CGFloat = {
+        let unbounded = CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        return ceil(string.boundingRect(with: unbounded, options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).width)
+    }()
+
+    private func layOut(width: CGFloat) {
+        if abs(container.size.width - width) > 0.01 {
+            container.size = CGSize(width: width, height: 0)
+        }
+        manager.ensureLayout(for: manager.documentRange)
+    }
+
+    /// 주어진 폭에 맞춰 줄을 나눴을 때의 높이
+    public func height(forWidth width: CGFloat) -> CGFloat {
+        guard string.length > 0 else { return 0 }
+        layOut(width: width)
+        return ceil(manager.usageBoundsForTextContainer.maxY)
+    }
+
+    /// 주어진 폭에서 나뉜 줄들의 글자입니다(검증용).
+    public func lines(forWidth width: CGFloat) -> [String] {
+        layOut(width: width)
+        var lines: [String] = []
+        manager.enumerateTextLayoutFragments(from: manager.documentRange.location, options: [.ensuresLayout]) { fragment in
+            for line in fragment.textLineFragments where line.characterRange.length > 0 {
+                lines.append((line.attributedString.string as NSString).substring(with: line.characterRange))
+            }
+            return true
+        }
+        return lines
+    }
+
+    /// `origin`을 칸 내용의 왼쪽 위로 삼아 그립니다(위→아래 좌표).
+    public func draw(at origin: CGPoint, width: CGFloat, in context: CGContext) {
+        guard string.length > 0 else { return }
+        layOut(width: width)
+        manager.enumerateTextLayoutFragments(from: manager.documentRange.location, options: [.ensuresLayout]) { fragment in
+            let frame = fragment.layoutFragmentFrame
+            fragment.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY), in: context)
+            return true
+        }
+    }
+}
+
+/// 표의 열 너비와 행 높이를 정하고, 주어진 그래픽 컨텍스트에 그립니다. 좌표는 위에서 아래로 자랍니다.
 public final class TableLayout {
     /// 본문 폭
     public let columnWidth: CGFloat
@@ -184,38 +252,35 @@ public final class TableLayout {
     public let columnWidths: [CGFloat]
     public let rowHeights: [CGFloat]
     public let contentSize: CGSize
-    private let rows: [[NSAttributedString]]
+    private let cells: [[TableCell]]
     private let style: TableAttachment.Style
-
-    private static let drawingOptions: StringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
 
     /// 화면에 보이는 표의 폭입니다.
     public var visibleWidth: CGFloat {
         min(contentSize.width, availableWidth)
     }
 
-    init(rows: [[NSAttributedString]], style: TableAttachment.Style, columnWidth: CGFloat, availableWidth: CGFloat) {
-        self.rows = rows
+    init(cells: [[TableCell]], style: TableAttachment.Style, columnWidth: CGFloat, availableWidth: CGFloat) {
+        self.cells = cells
         self.style = style
         self.columnWidth = columnWidth
         self.availableWidth = availableWidth
 
-        let columnCount = rows.map(\.count).max() ?? 0
+        let columnCount = cells.map(\.count).max() ?? 0
         let padding = style.cellPaddingX * 2
-        let unbounded = CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
 
         // 1) 줄바꿈 없이 필요한 너비
         var natural = [CGFloat](repeating: 0, count: columnCount)
-        for row in rows {
+        for row in cells {
             for (column, cell) in row.enumerated() {
-                let width = ceil(cell.boundingRect(with: unbounded, options: Self.drawingOptions, context: nil).width)
-                natural[column] = max(natural[column], width)
+                natural[column] = max(natural[column], cell.naturalWidth)
             }
         }
         let capped = natural.map { min($0, style.maxColumnWidth) + padding }
         let minimum = natural.map { min($0, style.minColumnWidth) + padding }
 
-        // 2) 폭 배분. 들어가면 그대로, 넘치면 최소 너비까지 줄이고, 그래도 넘치면 가로 스크롤합니다.
+        // 2) 폭 배분. 들어가면 그대로 둡니다. 넘치면 열을 줄이되, 최소 너비까지 줄여야만 들어가는 경우에는
+        //    칸이 너무 좁아지므로 조금 넘치게 두고 가로 스크롤합니다.
         let cappedTotal = capped.reduce(0, +)
         let minimumTotal = minimum.reduce(0, +)
         var widths: [CGFloat]
@@ -233,11 +298,10 @@ public final class TableLayout {
 
         // 3) 행 높이
         var heights: [CGFloat] = []
-        for row in rows {
+        for row in cells {
             var height: CGFloat = 0
             for (column, cell) in row.enumerated() {
-                let box = CGSize(width: widths[column] - padding, height: .greatestFiniteMagnitude)
-                height = max(height, ceil(cell.boundingRect(with: box, options: Self.drawingOptions, context: nil).height))
+                height = max(height, cell.height(forWidth: widths[column] - padding))
             }
             heights.append(height + style.cellPaddingY * 2)
         }
@@ -245,7 +309,7 @@ public final class TableLayout {
         contentSize = CGSize(width: widths.reduce(0, +), height: heights.reduce(0, +))
     }
 
-    /// 현재 그래픽 컨텍스트(위→아래 좌표)에 표 전체를 그립니다.
+    /// 표 전체를 그립니다(위→아래 좌표의 컨텍스트).
     public func draw(in context: CGContext, dirtyRect: CGRect) {
         let bounds = CGRect(origin: .zero, size: contentSize)
         let inset = style.borderWidth / 2
@@ -262,15 +326,14 @@ public final class TableLayout {
         context.restoreGState()
 
         var y: CGFloat = 0
-        for (rowIndex, row) in rows.enumerated() {
+        for (rowIndex, row) in cells.enumerated() {
             let height = rowHeights[rowIndex]
             if y + height >= dirtyRect.minY, y <= dirtyRect.maxY {
                 var x: CGFloat = 0
                 for (column, cell) in row.enumerated() {
                     let width = columnWidths[column]
-                    let rect = CGRect(x: x + style.cellPaddingX, y: y + style.cellPaddingY - style.halfLeading,
-                                      width: width - style.cellPaddingX * 2, height: height - style.cellPaddingY * 2 + style.halfLeading)
-                    cell.draw(with: rect, options: Self.drawingOptions, context: nil)
+                    cell.draw(at: CGPoint(x: x + style.cellPaddingX, y: y + style.cellPaddingY - style.halfLeading),
+                              width: width - style.cellPaddingX * 2, in: context)
                     x += width
                 }
             }

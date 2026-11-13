@@ -3,6 +3,7 @@
 //   swiftc -O scripts/shot.swift -o tmp/shot
 //   tmp/shot access                      화면 기록 권한이 있으면 "yes", 없으면 "no"
 //   tmp/shot window <bundle id>          그 앱의 맨 앞 일반 창: "<창 번호> <폭> <높이>"
+//   tmp/shot pixel <그림.png> <x 비율> <y 비율>   그 위치(0~1, 왼쪽 위 기준)의 색: "r g b" (0~1)
 //   tmp/shot quit <bundle id>            그 앱을 끝냅니다(끝날 때까지 기다립니다)
 //   tmp/shot compose <왼쪽.png> <오른쪽.png> <결과.png> <왼쪽 이름> <오른쪽 이름>
 //                                        두 그림을 이름표와 함께 나란히 붙입니다.
@@ -38,6 +39,15 @@ case "window":
         exit(0)
     }
     fail("창을 찾지 못했습니다")
+
+case "pixel":
+    guard arguments.count == 4, let fx = Double(arguments[2]), let fy = Double(arguments[3]),
+          let image = NSBitmapImageRep(data: (try? Data(contentsOf: URL(fileURLWithPath: arguments[1]))) ?? Data()),
+          let color = image.colorAt(x: Int(Double(image.pixelsWide - 1) * fx), y: Int(Double(image.pixelsHigh - 1) * fy))?
+              .usingColorSpace(.sRGB) else {
+        fail("usage: shot pixel <png> <x 0~1> <y 0~1>")
+    }
+    print(String(format: "%.3f %.3f %.3f", color.redComponent, color.greenComponent, color.blueComponent))
 
 case "quit":
     guard arguments.count == 2 else { fail("usage: shot quit <bundle id>") }

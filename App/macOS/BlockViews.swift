@@ -24,6 +24,8 @@ final class BlockViewProvider: NSTextAttachmentViewProvider {
 /// 가로로만 스크롤하는 scroll view입니다. 세로 스크롤은 바깥(본문)으로 넘깁니다.
 final class HorizontalScrollView: NSScrollView {
     private var gestureIsHorizontal = false
+    private let fade = CAGradientLayer()
+    private static let fadeWidth: CGFloat = 28
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -36,6 +38,39 @@ final class HorizontalScrollView: NSScrollView {
         verticalScrollElasticity = .none
         horizontalScrollElasticity = .automatic
         automaticallyAdjustsContentInsets = false
+        wantsLayer = true
+        fade.startPoint = CGPoint(x: 0, y: 0.5)
+        fade.endPoint = CGPoint(x: 1, y: 0.5)
+        contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(updateFade),
+                                               name: NSView.boundsDidChangeNotification, object: contentView)
+    }
+
+    override func layout() {
+        super.layout()
+        updateFade()
+    }
+
+    /// 내용이 더 있는 쪽 가장자리를 흐리게 해서, 옆으로 넘길 수 있다는 것을 알립니다.
+    @objc func updateFade() {
+        let overflow = (documentView?.frame.width ?? 0) - contentSize.width
+        let offset = contentView.bounds.minX
+        let fadesLeft = offset > 0.5
+        let fadesRight = offset < overflow - 0.5
+        guard bounds.width > 0, fadesLeft || fadesRight else {
+            layer?.mask = nil
+            return
+        }
+        let opaque = NSColor.black.cgColor
+        let clear = NSColor.black.withAlphaComponent(0).cgColor
+        let edge = NSNumber(value: Double(min(Self.fadeWidth / bounds.width, 0.4)))
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        fade.frame = bounds
+        fade.colors = [fadesLeft ? clear : opaque, opaque, opaque, fadesRight ? clear : opaque]
+        fade.locations = [0, edge, NSNumber(value: 1 - edge.doubleValue), 1]
+        layer?.mask = fade
+        CATransaction.commit()
     }
 
     @available(*, unavailable)
@@ -140,6 +175,20 @@ final class TableBlockView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
+    /// 표 전체의 폭
+    var contentWidth: CGFloat { canvas.frame.width }
+
+    /// 화면에 보이는 폭(본문 폭보다 넓을 수 있습니다)
+    var visibleWidth: CGFloat { scrollView.frame.width }
+
+    var horizontalOffset: CGFloat { scrollView.contentView.bounds.minX }
+
+    func scrollHorizontally(to x: CGFloat) {
+        let limit = max(0, canvas.frame.width - scrollView.contentSize.width)
+        scrollView.contentView.scroll(to: NSPoint(x: min(max(x, 0), limit), y: 0))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         canvas.syncSize()
@@ -147,6 +196,7 @@ final class TableBlockView: NSView {
         let visible = attachment?.currentLayout?.visibleWidth ?? newSize.width
         let overflow = max(0, visible - newSize.width)
         scrollView.frame = NSRect(x: -(overflow / 2).rounded(), y: 0, width: visible, height: newSize.height)
+        scrollView.updateFade()
     }
 }
 

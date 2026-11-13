@@ -140,6 +140,27 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(text, "문단 하나\nswift build\nswift test\n구성\t기술\n앱\tSwift\n끝")
     }
 
+    func testTableCellsKeepKoreanWordsTogether() {
+        // 본문과 같은 규칙: "(iOS에"의 조사 "에"만 다음 줄로 떨어지면 안 됩니다.
+        let cell = "표·코드 블록은 `NSTextAttachmentViewProvider`(iOS에 `NSTextTable`이 없으므로). 파서는 API는 3단계로"
+        let (rendered, _) = render("| 기술 |\n|---|\n| \(cell) |")
+        guard let table = rendered.text.attribute(.attachment, at: 0, effectiveRange: nil) as? TableAttachment else {
+            return XCTFail("표가 없습니다")
+        }
+        for width in stride(from: CGFloat(90), through: 320, by: 7) {
+            let lines = table.cells[1][0].lines(forWidth: width)
+            XCTAssertGreaterThan(lines.count, 1)
+            for (line, next) in zip(lines, lines.dropFirst()) {
+                guard let last = line.unicodeScalars.last, let first = next.unicodeScalars.first else { continue }
+                let lastIsWord = CharacterSet.alphanumerics.contains(last) || last == ")"
+                let firstIsHangul = (0xAC00...0xD7A3).contains(first.value)
+                // 한 낱말이 칸보다 길어 어쩔 수 없이 끊긴 경우는 빼고 봅니다.
+                let unavoidable = line.split(separator: " ").count == 1
+                XCTAssertFalse(lastIsWord && firstIsHangul && !unavoidable, "폭 \(width): \"\(line)\" | \"\(next)\"")
+            }
+        }
+    }
+
     func testWideTableUsesBleedWidthThenScrolls() {
         let cell = String(repeating: "넓은 칸의 내용입니다 ", count: 8)
         let (rendered, _) = render("| 하나 | 둘 | 셋 |\n|---|---|---|\n| \(cell) | \(cell) | \(cell) |")

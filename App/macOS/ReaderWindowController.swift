@@ -132,6 +132,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         guard let readerDocument else { return }
         let saved = remembersPosition ? readerDocument.fileURL.flatMap(ScrollPositionStore.anchor(for:)) : nil
         readerController.display(readerDocument, restoring: saved)
+        // 처음 연 화면에서도 지금 읽는 절을 목차에 표시합니다.
+        outlineController.highlight(characterIndex: (readerController.currentAnchor()?.index ?? 0) + 1)
         window?.makeFirstResponder(readerController.textView)
         // 창을 띄우기 전이라면 `showWindow`가 띄운 뒤에 한 번만 그립니다.
         if window?.isVisible == true {

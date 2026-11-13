@@ -41,7 +41,7 @@ enum LaunchClock {
 ///
 ///     mdr.app/Contents/MacOS/mdr FILE -snapshot out.png [-size 1000x690] [-appearance dark]
 ///         [-scrollTo "제목 일부"] [-scrollFraction 0.5] [-sidebar hide] [-fontScale 1.25]
-///         [-codeScroll 200] [-outlineRow 12] [-perform "zoomIn:,widenMeasure:"] [-persist YES]
+///         [-codeScroll 200] [-tableScroll 200] [-outlineRow 12] [-perform "zoomIn:,widenMeasure:"] [-persist YES]
 ///         [-metrics out.json] [-wait 0.5] [-exit YES]
 final class Automation {
     static let shared = Automation()
@@ -60,6 +60,8 @@ final class Automation {
     private(set) var persistsPosition = false
     /// 화면에 보이는 첫 코드 블록을 가로로 이만큼 스크롤합니다(가로 스크롤 검증용).
     private(set) var codeScroll: CGFloat?
+    /// 화면에 보이는 첫 표를 가로로 이만큼 스크롤합니다.
+    private(set) var tableScroll: CGFloat?
     /// 목차에서 이 줄을 누른 것처럼 선택합니다(목차 이동 검증용).
     private(set) var outlineRow: Int?
     /// 메뉴 항목의 동작 이름들입니다. 메뉴를 누른 것과 같은 경로로 차례로 실행합니다(메뉴 연결 검증용).
@@ -95,6 +97,7 @@ final class Automation {
             case "-exit": exitWhenDone = value == "YES"
             case "-persist": persistsPosition = value == "YES"
             case "-codeScroll": codeScroll = Double(value).map { CGFloat($0) }
+            case "-tableScroll": tableScroll = Double(value).map { CGFloat($0) }
             case "-outlineRow": outlineRow = Int(value)
             case "-perform": menuActions = value.split(separator: ",").map(String.init)
             default: break
@@ -127,10 +130,16 @@ final class Automation {
 
     private func finish(_ controller: ReaderWindowController) {
         var codeBlock: [String: Any] = [:]
-        if let codeScroll, let view = Self.firstVisibleCodeBlock(in: controller.readerController.textView) {
+        if let codeScroll, let view: CodeBlockView = Self.firstVisible(in: controller.readerController.textView) {
             view.scrollHorizontally(to: codeScroll)
             controller.window?.displayIfNeeded()
             codeBlock = ["contentWidth": view.contentWidth, "visibleWidth": view.bounds.width, "scrolledTo": view.horizontalOffset]
+        }
+        var tableBlock: [String: Any] = [:]
+        if let tableScroll, let view: TableBlockView = Self.firstVisible(in: controller.readerController.textView) {
+            view.scrollHorizontally(to: tableScroll)
+            controller.window?.displayIfNeeded()
+            tableBlock = ["contentWidth": view.contentWidth, "visibleWidth": view.visibleWidth, "scrolledTo": view.horizontalOffset]
         }
         if let snapshotURL, let window = controller.window {
             snapshot(window, to: snapshotURL)
@@ -145,6 +154,7 @@ final class Automation {
             metrics["sidebarCollapsed"] = controller.isSidebarCollapsed
             if let outlineRow { metrics["outlineRowTitle"] = controller.outlineController.title(atRow: outlineRow) ?? "" }
             if !codeBlock.isEmpty { metrics["codeBlock"] = codeBlock }
+            if !tableBlock.isEmpty { metrics["tableBlock"] = tableBlock }
             if let data = try? JSONSerialization.data(withJSONObject: metrics, options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: metricsURL)
             }
@@ -178,11 +188,12 @@ final class Automation {
         }
     }
 
-    private static func firstVisibleCodeBlock(in view: NSView) -> CodeBlockView? {
+    /// 화면에 보이는 것 가운데 가장 위에 있는 그 종류의 블록 view
+    private static func firstVisible<Block: NSView>(in view: NSView) -> Block? {
         let visible = view.visibleRect
-        var found: [CodeBlockView] = []
+        var found: [Block] = []
         func walk(_ candidate: NSView) {
-            if let block = candidate as? CodeBlockView {
+            if let block = candidate as? Block {
                 if block.convert(block.bounds, to: view).intersects(visible) { found.append(block) }
                 return
             }
@@ -222,59 +233,139 @@ final class Automation {
     }
 }
 
-/// 조판 결과를 숫자로 확인하기 위한 측정입니다. 문서 전체를 배치한 뒤 본문 줄을 셉니다.
+/// 조판 결과를 숫자로 확인하기 위한 측정입니다. 문서 전체를 배치한 뒤 실제 줄의 위치와 내용을 읽습니다.
 enum Metrics {
+    /// 줄바꿈 자리의 앞뒤가 모두 글자인 줄바꿈을 셉니다. 낱말 하나가 줄보다 길어 어쩔 수 없는 경우는 따로 셉니다.
+    private struct BreakCounter {
+        var breaks = 0
+        var insideWord = 0
+        var forced = 0
+        var samples: [String] = []
+
+        mutating func add(line: String, next: String) {
+            breaks += 1
+            guard let before = line.unicodeScalars.last, let after = next.unicodeScalars.first,
+                  CharacterSet.alphanumerics.contains(before), CharacterSet.alphanumerics.contains(after) else { return }
+            // 줄 전체가 공백 없는 한 덩어리면 어디서 끊어도 낱말 안입니다.
+            if !line.trimmingCharacters(in: .whitespaces).contains(" ") {
+                forced += 1
+                return
+            }
+            insideWord += 1
+            if samples.count < 12 {
+                samples.append(String(line.suffix(12)) + "⏎" + String(next.prefix(12)))
+            }
+        }
+
+        var dictionary: [String: Any] {
+            ["breaks": breaks, "insideWord": insideWord, "forcedByLongWord": forced, "samples": samples]
+        }
+    }
+
     static func collect(from reader: ReaderViewController) -> [String: Any] {
-        guard let layoutManager = reader.textView.textLayoutManager, let style = reader.style else { return [:] }
+        guard let layoutManager = reader.textView.textLayoutManager, let style = reader.style,
+              let rendered = reader.rendered else { return [:] }
         // 읽던 자리는 문서 전체를 배치하기 전에 잽니다. 전체 배치는 어림했던 높이를 실제 값으로 바꿔
         // 화면에 보이는 위치를 움직입니다.
         let topIndex = reader.currentAnchor()?.index ?? -1
-        let topHeading = reader.rendered?.outline.last(where: { $0.location <= topIndex + 1 })?.title ?? ""
+        let topHeading = rendered.outline.last(where: { $0.location <= topIndex + 1 })?.title ?? ""
+        let scrollOffset = reader.scrollView.contentView.bounds.minY
         let layoutStart = Date()
         layoutManager.ensureLayout(for: layoutManager.documentRange)
         let fullLayoutMs = (Date().timeIntervalSince(layoutStart) * 10000).rounded() / 10
 
         var lineLengths: [Int] = []
         var hangulLineLengths: [Int] = []
-        var breaksInsideWord = 0
-        var insideWordSamples: [String] = []
-        var breaks = 0
+        var bodyBreaks = BreakCounter()
+        var allBreaks = BreakCounter()
+        var tableBreaks = BreakCounter()
         var bodyLineHeights: Set<CGFloat> = []
+        var bodyLeft = CGFloat.greatestFiniteMagnitude
+        var bodyMaxLineWidth: CGFloat = 0
+        var quoteParagraphs = 0
         let bodySize = style.em
         let whitespace = CharacterSet.whitespacesAndNewlines
+        let originX = reader.textView.textContainerOrigin.x
+
+        // 제목: 글자 크기와, 앞뒤 문단의 줄 상자까지의 실제 거리
+        let headingLevels = Dictionary(rendered.outline.map { ($0.location, $0.level) }, uniquingKeysWith: { first, _ in first })
+        var headings: [[String: Any]] = []
+        var previousBottom: CGFloat?
+        var pendingHeading: (level: Int, size: CGFloat, above: CGFloat, bottom: CGFloat)?
+        var location = 0
 
         layoutManager.enumerateTextLayoutFragments(from: layoutManager.documentRange.location, options: []) { fragment in
-            guard let paragraph = (fragment.textElement as? NSTextParagraph)?.attributedString, paragraph.length > 1,
-                  let font = paragraph.attribute(.font, at: 0, effectiveRange: nil) as? NSFont,
+            guard let paragraph = (fragment.textElement as? NSTextParagraph)?.attributedString else { return true }
+            defer { location += paragraph.length }
+            let frame = fragment.layoutFragmentFrame
+            let lines = fragment.textLineFragments.filter { $0.characterRange.length > 0 }
+            guard let firstLine = lines.first, let lastLine = lines.last, paragraph.length > 0 else { return true }
+            let top = frame.minY + firstLine.typographicBounds.minY
+            let bottom = frame.minY + lastLine.typographicBounds.maxY
+
+            if let heading = pendingHeading {
+                headings.append(["level": heading.level, "size": heading.size, "gapAbove": heading.above, "gapBelow": top - heading.bottom])
+                pendingHeading = nil
+            }
+            if let level = headingLevels[location], let font = paragraph.attribute(.font, at: 0, effectiveRange: nil) as? NSFont {
+                pendingHeading = (level, font.pointSize, previousBottom.map { top - $0 } ?? -1, bottom)
+            }
+            previousBottom = bottom
+
+            if let decoration = paragraph.attribute(.mdrDecoration, at: 0, effectiveRange: nil) as? BlockDecoration,
+               !decoration.quoteBars.isEmpty {
+                quoteParagraphs += 1
+            }
+            guard paragraph.attribute(.attachment, at: 0, effectiveRange: nil) == nil else { return true }
+
+            let text = paragraph.string as NSString
+            let strings = lines.map { text.substring(with: $0.characterRange) }
+            for (line, next) in zip(strings, strings.dropFirst()) {
+                allBreaks.add(line: line, next: next)
+            }
+
+            // 본문 문단(본문 글자 크기, 들여쓰지 않음)만 따로 봅니다.
+            guard let font = paragraph.attribute(.font, at: 0, effectiveRange: nil) as? NSFont,
                   let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle,
                   abs(font.pointSize - bodySize) < 0.01, paragraphStyle.headIndent == 0 else { return true }
-            let lines = fragment.textLineFragments
-            let text = paragraph.string as NSString
             for (index, line) in lines.enumerated() {
                 bodyLineHeights.insert(line.typographicBounds.height.rounded())
+                bodyLeft = min(bodyLeft, originX + frame.minX + line.typographicBounds.minX)
                 guard index < lines.count - 1 else { continue }
-                let range = line.characterRange
-                let content = text.substring(with: range)
-                let trimmed = content.trimmingCharacters(in: whitespace)
+                // 줄 끝 공백을 뺀 실제 글자의 폭
+                let trimmed = strings[index].trimmingCharacters(in: whitespace)
+                let endIndex = line.characterRange.location + (strings[index] as NSString).range(of: trimmed).upperBound
+                let width = endIndex < NSMaxRange(line.characterRange)
+                    ? line.locationForCharacter(at: endIndex).x
+                    : line.typographicBounds.width
+                bodyMaxLineWidth = max(bodyMaxLineWidth, width)
                 lineLengths.append(trimmed.count)
                 let hangul = trimmed.unicodeScalars.filter { (0xAC00...0xD7A3).contains($0.value) }.count
                 if hangul * 2 > trimmed.count { hangulLineLengths.append(trimmed.count) }
-                // 줄이 끝난 자리의 앞뒤가 모두 글자이면 낱말 안에서 끊긴 것입니다.
-                breaks += 1
-                let end = NSMaxRange(range)
-                if end < text.length, end > 0,
-                   let before = Unicode.Scalar(text.character(at: end - 1)),
-                   let after = Unicode.Scalar(text.character(at: end)),
-                   CharacterSet.alphanumerics.contains(before), CharacterSet.alphanumerics.contains(after) {
-                    breaksInsideWord += 1
-                    if insideWordSamples.count < 12 {
-                        let from = max(0, end - 12)
-                        insideWordSamples.append(text.substring(with: NSRange(location: from, length: end - from)) + "⏎"
-                            + text.substring(with: NSRange(location: end, length: min(12, text.length - end))))
-                    }
-                }
+                bodyBreaks.add(line: strings[index], next: strings[index + 1])
             }
             return true
+        }
+
+        // 표 칸과 블록 개수
+        var images = 0, codeBlocks = 0, tables = 0
+        rendered.text.enumerateAttribute(.attachment, in: NSRange(location: 0, length: rendered.text.length)) { value, _, _ in
+            switch value {
+            case is ImageAttachment: images += 1
+            case is CodeBlockAttachment: codeBlocks += 1
+            case let table as TableAttachment:
+                tables += 1
+                guard let layout = table.currentLayout else { return }
+                for row in table.cells {
+                    for (column, cell) in row.enumerated() {
+                        let strings = cell.lines(forWidth: layout.columnWidths[column] - table.style.cellPaddingX * 2)
+                        for (line, next) in zip(strings, strings.dropFirst()) {
+                            tableBreaks.add(line: line, next: next)
+                        }
+                    }
+                }
+            default: break
+            }
         }
 
         func summary(_ values: [Int]) -> [String: Any] {
@@ -285,26 +376,19 @@ enum Metrics {
                 "median": sorted[sorted.count / 2],
                 "p10": sorted[sorted.count / 10],
                 "p90": sorted[sorted.count * 9 / 10],
+                "max": sorted[sorted.count - 1],
                 "mean": (Double(sorted.reduce(0, +)) / Double(sorted.count) * 10).rounded() / 10,
             ]
         }
 
-        var images = 0, codeBlocks = 0, tables = 0
-        if let text = reader.rendered?.text {
-            text.enumerateAttribute(.attachment, in: NSRange(location: 0, length: text.length)) { value, _, _ in
-                switch value {
-                case is ImageAttachment: images += 1
-                case is CodeBlockAttachment: codeBlocks += 1
-                case is TableAttachment: tables += 1
-                default: break
-                }
-            }
-        }
-
+        let background = reader.textView.backgroundColor.usingColorSpace(.sRGB)
         return [
             "imageCount": images,
             "codeBlockCount": codeBlocks,
             "tableCount": tables,
+            "quoteParagraphCount": quoteParagraphs,
+            "footnoteCount": rendered.anchors.keys.filter { $0.hasPrefix("fn-") }.count,
+            "headings": headings,
             "script": style.options.script.rawValue,
             "scheme": style.options.scheme.rawValue,
             "bodySize": bodySize,
@@ -312,18 +396,22 @@ enum Metrics {
             "measure": style.measure,
             "bodyLineHeight": style.bodyLineHeight,
             "measuredBodyLineHeights": bodyLineHeights.sorted(),
+            "bodyLeft": bodyLeft == .greatestFiniteMagnitude ? -1 : bodyLeft,
+            "bodyMaxLineWidth": (bodyMaxLineWidth * 10).rounded() / 10,
             "textContainerInset": [reader.textView.textContainerInset.width, reader.textView.textContainerInset.height],
             "viewWidth": reader.scrollView.contentSize.width,
+            "backgroundRGB": [background?.redComponent ?? -1, background?.greenComponent ?? -1, background?.blueComponent ?? -1],
             "charactersPerLine": summary(lineLengths),
             "charactersPerHangulLine": summary(hangulLineLengths),
-            "lineBreaks": breaks,
-            "lineBreaksInsideWord": breaksInsideWord,
-            "lineBreaksInsideWordSamples": insideWordSamples,
+            "bodyLineBreaks": bodyBreaks.dictionary,
+            "allLineBreaks": allBreaks.dictionary,
+            "tableLineBreaks": tableBreaks.dictionary,
             "fullLayoutMs": fullLayoutMs,
+            "scrollOffset": scrollOffset,
             "topCharacterIndex": topIndex,
             "topHeading": topHeading,
-            "outlineCount": reader.rendered?.outline.count ?? 0,
-            "textLength": reader.rendered?.text.length ?? 0,
+            "outlineCount": rendered.outline.count,
+            "textLength": rendered.text.length,
             "documentHeight": reader.textView.frame.height,
         ]
     }

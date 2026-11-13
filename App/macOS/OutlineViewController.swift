@@ -79,6 +79,15 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
             tableView.deselectAll(nil)
         }
         isSyncingSelection = false
+        updateCurrentRowStyle()
+    }
+
+    /// 지금 읽는 절의 줄은 단계와 상관없이 강조색으로 보여 줍니다.
+    private func updateCurrentRowStyle() {
+        let selected = tableView.selectedRow
+        tableView.enumerateAvailableRowViews { rowView, row in
+            (rowView.view(atColumn: 0) as? OutlineCellView)?.isCurrent = row == selected
+        }
     }
 
     // MARK: Table
@@ -98,10 +107,12 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         }
         let item = items[row]
         cell.configure(title: item.title, depth: depths[row])
+        cell.isCurrent = row == tableView.selectedRow
         return cell
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
+        updateCurrentRowStyle()
         guard !isSyncingSelection, tableView.selectedRow >= 0 else { return }
         onSelect?(items[tableView.selectedRow])
     }
@@ -110,6 +121,11 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
 private final class OutlineCellView: NSTableCellView {
     private let label = NSTextField(labelWithString: "")
     private var leading: NSLayoutConstraint!
+    private var depth = 0
+
+    var isCurrent = false {
+        didSet { applyStyle() }
+    }
 
     init() {
         super.init(frame: .zero)
@@ -133,9 +149,19 @@ private final class OutlineCellView: NSTableCellView {
 
     func configure(title: String, depth: Int) {
         label.stringValue = title
-        label.font = .systemFont(ofSize: 13, weight: depth == 0 ? .medium : .regular)
-        label.textColor = depth <= 1 ? .labelColor : .secondaryLabelColor
+        self.depth = depth
         leading.constant = 4 + CGFloat(min(depth, 4)) * 12
         toolTip = title
+        applyStyle()
+    }
+
+    private func applyStyle() {
+        if isCurrent {
+            label.font = .systemFont(ofSize: 13, weight: .semibold)
+            label.textColor = .controlAccentColor
+        } else {
+            label.font = .systemFont(ofSize: 13, weight: depth == 0 ? .medium : .regular)
+            label.textColor = depth <= 1 ? .labelColor : .secondaryLabelColor
+        }
     }
 }
