@@ -101,6 +101,8 @@ public indirect enum Inline: Equatable, Sendable {
     case superscript([Inline])
     case `subscript`([Inline])
     case footnoteReference(String)
+    /// 그리지 않고 건너뛴 내용입니다. 값은 종류(예: "SVG")입니다.
+    case omitted(String)
     case softBreak
     case lineBreak
 }
@@ -117,7 +119,7 @@ public extension Array where Element == Inline {
                 out += c.plainText
             case .link(_, let c): out += c.plainText
             case .image(let ref): out += ref.alt
-            case .footnoteReference: break
+            case .footnoteReference, .omitted: break
             case .softBreak, .lineBreak: out += " "
             }
         }

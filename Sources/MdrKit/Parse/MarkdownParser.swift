@@ -178,7 +178,14 @@ private struct Converter {
         case let heading as Markdown.Heading:
             return .heading(level: heading.level, content: inlines(from: heading.children))
         case let paragraph as Markdown.Paragraph:
-            return paragraphBlock(inlines(from: paragraph.children))
+            let content = inlines(from: paragraph.children)
+            // 태그만 있던 문단처럼 남은 내용이 없으면 빈 줄을 만들지 않습니다.
+            let isEmpty = content.allSatisfy {
+                if case .text(let text) = $0 { return text.allSatisfy(\.isWhitespace) }
+                if case .softBreak = $0 { return true }
+                return false
+            }
+            return isEmpty ? nil : paragraphBlock(content)
         case let quote as Markdown.BlockQuote:
             return .blockQuote(blocks(from: quote.children))
         case let list as Markdown.UnorderedList:
@@ -254,7 +261,24 @@ private struct Converter {
 
     private func inlines(from children: MarkupChildren) -> [Inline] {
         var raw: [RawInline] = []
+        var insideSVG = false
         for child in children {
+            // 문단 안에 통째로 들어온 `<svg>...</svg>`는 그리지 못합니다. 안의 글자가 본문에 섞여 나오지 않게
+            // 닫는 태그까지 건너뛰고 자리만 표시합니다.
+            if let html = child as? Markdown.InlineHTML {
+                let tag = html.rawHTML.lowercased()
+                if insideSVG {
+                    if tag.hasPrefix("</svg") { insideSVG = false }
+                    continue
+                }
+                if tag.hasPrefix("<svg") {
+                    insideSVG = !tag.hasSuffix("/>")
+                    raw.append(.inline(.omitted("SVG")))
+                    continue
+                }
+            } else if insideSVG {
+                continue
+            }
             raw.append(contentsOf: rawInlines(from: child))
         }
         return resolveFootnotes(mergeText(resolveHTML(raw)))

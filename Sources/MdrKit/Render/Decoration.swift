@@ -59,7 +59,8 @@ public final class DecoratedLayoutFragment: NSTextLayoutFragment {
         let base = super.renderingSurfaceBounds
         let frame = layoutFragmentFrame
         // 막대와 가로줄은 글자 영역 밖(문단 왼쪽, 본문 전체 폭)에 그립니다.
-        var full = CGRect(x: -frame.minX, y: 0, width: max(containerWidth, frame.maxX), height: frame.height)
+        // 높이에 1pt를 더해, 다음 문단으로 이어지는 막대의 경계에 틈이 보이지 않게 합니다.
+        var full = CGRect(x: -frame.minX, y: 0, width: max(containerWidth, frame.maxX), height: frame.height + 1)
         // 본문 폭보다 넓은 표는 좌우 여백까지 그립니다. 그릴 영역을 그만큼 넓혀 두지 않으면 잘립니다.
         if let paragraph, paragraph.length > 0,
            let table = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? TableAttachment,
@@ -88,20 +89,20 @@ public final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     private func drawDecorations(_ paragraph: NSAttributedString, at point: CGPoint, in context: CGContext) {
-        let lines = textLineFragments
+        // 문서 맨 끝 문단에는 내용 없는 줄이 하나 더 붙을 수 있습니다. 장식 계산에서는 뺍니다.
+        var lines = textLineFragments
+        while lines.count > 1, let last = lines.last, last.characterRange.length == 0 { lines.removeLast() }
         guard let firstLine = lines.first, let lastLine = lines.last else { return }
         let containerX = point.x - layoutFragmentFrame.minX
 
         if let decoration = paragraph.attribute(.mdrDecoration, at: 0, effectiveRange: nil) as? BlockDecoration {
             if !decoration.quoteBars.isEmpty {
                 let top = decoration.startsQuote ? firstLine.typographicBounds.minY : 0
-                let bottom = decoration.endsQuote ? lastLine.typographicBounds.maxY : layoutFragmentFrame.height
+                let bottom = decoration.endsQuote ? lastLine.typographicBounds.maxY : layoutFragmentFrame.height + 1
                 context.setFillColor(decoration.quoteBarColor.cgColor)
+                // 문단마다 따로 그리므로 끝을 둥글리지 않습니다. 둥글리면 문단 사이에 홈이 생깁니다.
                 for x in decoration.quoteBars {
-                    let rect = CGRect(x: containerX + x, y: point.y + top, width: decoration.quoteBarWidth, height: bottom - top)
-                    context.addPath(CGPath(roundedRect: rect, cornerWidth: decoration.quoteBarWidth / 2,
-                                           cornerHeight: decoration.quoteBarWidth / 2, transform: nil))
-                    context.fillPath()
+                    context.fill(CGRect(x: containerX + x, y: point.y + top, width: decoration.quoteBarWidth, height: bottom - top))
                 }
             }
             if decoration.isRule {

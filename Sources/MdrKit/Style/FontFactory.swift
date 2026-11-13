@@ -52,12 +52,16 @@ public enum FontFactory {
         return CTFontCreateWithFontDescriptor(descriptor, size, nil) as PlatformFont
     }
 
-    /// 기울임 글꼴이 있으면 돌려줍니다. 없으면(Pretendard 등) nil이고, 호출한 쪽에서 기울기를 합성합니다.
-    public static func italic(of font: PlatformFont) -> PlatformFont? {
-        guard let italic = CTFontCreateCopyWithSymbolicTraits(font as CTFont, 0, nil, .traitItalic, .traitItalic) else {
-            return nil
+    /// 기울임 글꼴을 돌려줍니다. 글꼴 가족에 기울임이 없으면(Pretendard 등) 글자를 약 11도 기울여 만듭니다.
+    /// (`obliqueness` 속성은 TextKit 2에서 그려지지 않아 쓰지 않습니다.)
+    public static func italic(of font: PlatformFont) -> PlatformFont {
+        // 기울임이 없는 가족에서도 nil 대신 원래 글꼴을 돌려주는 경우가 있어, 실제로 기울임인지 확인합니다.
+        if let italic = CTFontCreateCopyWithSymbolicTraits(font as CTFont, 0, nil, .traitItalic, .traitItalic),
+           CTFontGetSymbolicTraits(italic).contains(.traitItalic) {
+            return italic as PlatformFont
         }
-        return italic as PlatformFont
+        var slant = CGAffineTransform(a: 1, b: 0, c: 0.2, d: 1, tx: 0, ty: 0)
+        return CTFontCreateCopyWithAttributes(font as CTFont, font.pointSize, &slant, nil) as PlatformFont
     }
 
     public static func isAvailable(family: String) -> Bool {

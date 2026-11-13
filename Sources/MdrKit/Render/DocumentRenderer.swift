@@ -53,6 +53,9 @@ public final class DocumentRenderer {
         font: style.font(.mono, size: (style.em * CGFloat(style.tokens.inlineCode.size)).rounded(), weight: 400)
     )
 
+    private lazy var checkboxFont = FontFactory.make(
+        .init(family: "Apple Symbols", fallbacks: []), size: (style.em * 1.2).rounded(), weight: 400)
+
     public init(style: ResolvedStyle, baseURL: URL?) {
         self.style = style
         self.baseURL = baseURL
@@ -68,6 +71,10 @@ public final class DocumentRenderer {
             })
         }
         render(document.blocks, in: Context(color: style.palette.text))
+        // 마지막 줄바꿈은 문서 끝에 빈 줄을 하나 더 만듭니다.
+        if output.length > 0, (output.string as NSString).character(at: output.length - 1) == 0x0A {
+            output.deleteCharacters(in: NSRange(location: output.length - 1, length: 1))
+        }
         if title == nil {
             title = outline.first?.title
         }
@@ -215,13 +222,19 @@ public final class DocumentRenderer {
 
     /// `marker`를 주면 목록 항목으로 그립니다. 표지는 `hanging.markerEnd`에 오른쪽 맞춤합니다.
     private func renderParagraph(_ content: [Inline], in context: Context, marker: String? = nil, hanging: Hanging? = nil) {
+        let isCheckbox = marker == "☐" || marker == "☑"
         beginParagraph(top: 0, bottom: paragraphBottom(in: context), lineHeight: style.bodyLineHeight,
                        font: style.bodyFont, context: context, hanging: hanging)
         let line = NSMutableAttributedString()
         if let marker {
             var markerStyle = bodyTextStyle(in: context)
             markerStyle.color = style.palette.marker
-            line.append(NSAttributedString(string: "\t\(marker)\t", attributes: attributes(for: markerStyle)))
+            var markerAttributes = attributes(for: markerStyle)
+            if isCheckbox {
+                // 체크 상자 두 글자가 서로 다른 대체 글꼴에서 오면 크기가 달라 보입니다. 한 글꼴로 맞춥니다.
+                markerAttributes[.font] = checkboxFont
+            }
+            line.append(NSAttributedString(string: "\t\(marker)\t", attributes: markerAttributes))
         }
         let hasImage = append(content, to: line, style: bodyTextStyle(in: context))
         endParagraph(line, releasesLineHeight: hasImage)
@@ -396,7 +409,7 @@ public final class DocumentRenderer {
         var inner = context
         inner.color = style.palette.secondaryText
         if trimmed.range(of: "<svg", options: .caseInsensitive) != nil {
-            renderParagraph([.emphasis([.text("[SVG 그림은 표시하지 않습니다]")])], in: inner)
+            renderParagraph([.omitted("SVG")], in: inner)
             return
         }
         // 그 밖의 HTML은 태그를 떼고 글자만 보여 줍니다.
@@ -549,16 +562,9 @@ public final class DocumentRenderer {
         if cacheable, let cached = attributeCache[key] { return cached }
 
         var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: text.color]
-        if text.italic {
-            if let italic = style.italicFont(text.role, size: text.size, weight: text.weight) {
-                attributes[.font] = italic
-            } else {
-                attributes[.font] = style.font(text.role, size: text.size, weight: text.weight)
-                attributes[.obliqueness] = 0.18
-            }
-        } else {
-            attributes[.font] = style.font(text.role, size: text.size, weight: text.weight)
-        }
+        attributes[.font] = text.italic
+            ? style.italicFont(text.role, size: text.size, weight: text.weight)
+            : style.font(text.role, size: text.size, weight: text.weight)
         if text.shift != 0 { attributes[.baselineOffset] = text.shift }
         if text.tracking != 0 { attributes[.kern] = CGFloat(text.tracking) * text.size }
         if text.strikethrough {
@@ -616,6 +622,11 @@ public final class DocumentRenderer {
                     inner.shift = text.shift - text.size * 0.12
                 }
                 hasImage = append(children, to: target, style: inner) || hasImage
+            case .omitted(let kind):
+                var inner = text
+                inner.color = self.style.palette.secondaryText
+                inner.italic = true
+                target.append(NSAttributedString(string: "[\(kind) 그림은 표시하지 않습니다]", attributes: attributes(for: inner)))
             case .footnoteReference(let label):
                 var inner = text
                 inner.size = (text.size * 0.75).rounded()

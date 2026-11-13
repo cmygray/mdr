@@ -57,7 +57,7 @@ public final class ResolvedStyle {
     public let palette: Palette
     private let colors: StyleTokens.Colors
     private var fontCache: [FontKey: PlatformFont] = [:]
-    private var italicCache: [FontKey: PlatformFont?] = [:]
+    private var italicCache: [FontKey: PlatformFont] = [:]
     private var namedColors: [String: PlatformColor] = [:]
 
     private struct FontKey: Hashable {
@@ -110,8 +110,7 @@ public final class ResolvedStyle {
         return font
     }
 
-    /// 기울임 글꼴이 없으면 nil입니다.
-    public func italicFont(_ role: FontRole, size: CGFloat, weight: Double) -> PlatformFont? {
+    public func italicFont(_ role: FontRole, size: CGFloat, weight: Double) -> PlatformFont {
         let key = FontKey(role: role, size: size, weight: weight)
         if let cached = italicCache[key] { return cached }
         let italic = FontFactory.italic(of: font(role, size: size, weight: weight))

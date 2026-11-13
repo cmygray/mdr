@@ -70,6 +70,15 @@ final class ParserTests: XCTestCase {
         ])
     }
 
+    func testInlineSVGIsOmittedWithItsText() {
+        let source = "앞\n\n<svg width=\"10\"><g><text>그림 속 글자</text></g></svg>\n\n<span></span>\n\n뒤"
+        XCTAssertEqual(MarkdownParser.parse(source).blocks, [
+            .paragraph([.text("앞")]),
+            .paragraph([.omitted("SVG")]),
+            .paragraph([.text("뒤")]),
+        ])
+    }
+
     func testStandaloneImageBecomesImageBlock() {
         let document = MarkdownParser.parse("![대체 글자](images/a.png)\n\n글 안의 ![x](b.png) 이미지")
         XCTAssertEqual(document.blocks.first, .image(ImageRef(source: "images/a.png", alt: "대체 글자")))
