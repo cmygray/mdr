@@ -48,6 +48,20 @@ MDR_TOKENS="$tokens" scripts/snap.sh fixtures/01-korean-handoff.md "$out/hot-rel
   -wait 3 -metrics "$out/hot-reload-after.json" 2>/dev/null
 wait
 
+echo "== 4-2. 토큰 파일에 오류가 있으면 알리고 직전 값을 유지하는지"
+( sleep 1.5; print -r -- '{ "baseSize": "크게" }' > "$tokens" ) &
+MDR_TOKENS="$tokens" scripts/snap.sh fixtures/01-korean-handoff.md "$out/hot-reload-error.png" -size $size \
+  -wait 3 -metrics "$out/hot-reload-error.json" 2>/dev/null
+wait
+
+echo "== 4-3. 문서 파일이 바뀌면 읽던 자리를 지키며 다시 그리는지"
+doc="$PWD/tmp/verify-doc.md"
+cp fixtures/03-images-typesetting.md "$doc"
+( sleep 1.5; print -r -- $'\n\n## 새로 붙인 절\n\n실행 중에 덧붙인 문단입니다.' >> "$doc" ) &
+scripts/snap.sh "$doc" "$out/document-reload.png" -size $size -scrollTo "IV-C" \
+  -wait 3 -metrics "$out/document-reload.json" 2>/dev/null
+wait
+
 echo "== 5. 문서별 스크롤 위치 기억"
 scripts/snap.sh fixtures/03-images-typesetting.md "$out/scroll-memory-1-saved.png" -size $size -persist YES \
   -scrollTo "IV-C" -metrics "$out/scroll-memory-1.json" 2>/dev/null
@@ -103,6 +117,14 @@ check("코드 블록 가로 스크롤", c["contentWidth"] > c["visibleWidth"] an
 before, after = load("hot-reload-before.json"), load("hot-reload-after.json")
 check("토큰 즉시 반영", before["bodySize"] == 16 and after["bodySize"] == 20 and after["tokenReloads"] >= 1,
       f'실행 중 다시 읽은 횟수 {after["tokenReloads"]}, 본문 크기 {before["bodySize"]}pt → {after["bodySize"]}pt (앱을 다시 시작하지 않음)')
+
+error = load("hot-reload-error.json")
+check("토큰 오류 처리", error["tokenError"] != "" and error["bodySize"] == 20,
+      f'오류 메시지 "{error["tokenError"]}", 본문 크기는 직전 값 {error["bodySize"]}pt 유지')
+
+reloaded, original = load("document-reload.json"), load("03-images-typesetting-light.json")
+check("문서 변경 반영", reloaded["outlineCount"] == original["outlineCount"] + 1 and reloaded["topHeading"].startswith("IV-C"),
+      f'목차 {original["outlineCount"]}줄 → {reloaded["outlineCount"]}줄, 화면 맨 위 절은 그대로 "{reloaded["topHeading"]}"')
 
 s1, s2, s3 = load("scroll-memory-1.json"), load("scroll-memory-2.json"), load("scroll-memory-3.json")
 check("스크롤 위치 기억", s1["topCharacterIndex"] > 0 and s1["topCharacterIndex"] == s2["topCharacterIndex"],

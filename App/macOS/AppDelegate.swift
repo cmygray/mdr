@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        NSApp.activate()
         NSDocumentController.shared.openDocument(nil)
         return true
     }

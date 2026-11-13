@@ -139,6 +139,7 @@ final class Automation {
             var metrics = Metrics.collect(from: controller.readerController)
             metrics["launchMs"] = LaunchClock.snapshot
             metrics["tokenReloads"] = StyleStore.shared.reloadCount
+            metrics["tokenError"] = StyleStore.shared.lastError ?? ""
             metrics["fontScale"] = StyleStore.shared.settings.fontScale
             metrics["measureScale"] = StyleStore.shared.settings.measureScale
             metrics["sidebarCollapsed"] = controller.isSidebarCollapsed
