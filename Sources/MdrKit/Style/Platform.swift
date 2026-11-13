@@ -7,12 +7,14 @@ public typealias PlatformFont = NSFont
 public typealias PlatformColor = NSColor
 public typealias PlatformImage = NSImage
 public typealias PlatformView = NSView
+typealias StringDrawingOptions = NSString.DrawingOptions
 #else
 import UIKit
 public typealias PlatformFont = UIFont
 public typealias PlatformColor = UIColor
 public typealias PlatformImage = UIImage
 public typealias PlatformView = UIView
+typealias StringDrawingOptions = NSStringDrawingOptions
 #endif
 
 extension PlatformColor {

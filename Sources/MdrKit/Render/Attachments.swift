@@ -187,7 +187,7 @@ public final class TableLayout {
     private let rows: [[NSAttributedString]]
     private let style: TableAttachment.Style
 
-    private static let drawingOptions: NSString.DrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
+    private static let drawingOptions: StringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
 
     /// 화면에 보이는 표의 폭입니다.
     public var visibleWidth: CGFloat {
