@@ -35,7 +35,7 @@ swift build --build-path .build/ios --sdk "$(xcrun --sdk iphonesimulator --show-
 open -a "$PWD/build/Build/Products/Debug/mdr.app" fixtures/01-korean-handoff.md
 ```
 
-문서 없이 켜면 열기 창이 뜹니다. 파일이 바뀌면 읽던 자리를 지키며 다시 그립니다.
+문서 없이 켜면 열기 창이 뜹니다. 파일이 바뀌면 읽던 자리를 지키며 다시 그립니다. 복사하면 일반 글자로 들어가며, 코드 블록은 코드 원문으로, 표는 탭으로 칸을 나눠 넣습니다.
 
 | 메뉴 | 단축키 |
 |---|---|
@@ -98,9 +98,11 @@ open -a "$PWD/build/Build/Products/Debug/mdr.app" fixtures/01-korean-handoff.md
 ## 검증
 
 ```sh
-scripts/verify.sh     # 완료 조건을 스냅숏과 측정값으로 확인 → output/verify/
+scripts/verify.sh     # 완료 조건을 스냅숏과 측정값으로 확인 → output/verify/ (판정 요약은 SUMMARY.txt)
 scripts/compare.sh    # 문서마다 mdr와 QuickMD 화면을 나란히 저장 → output/compare/
 ```
+
+`scripts/verify.sh`는 이전 결과를 지우고 시작하며, 스냅숏 실행이 하나라도 실패하거나 판정이 하나라도 어긋나면 0이 아닌 값으로 끝납니다. 먼저 `scripts/build.sh`로 Debug 빌드를 만들어 두어야 합니다.
 
 `scripts/compare.sh`가 QuickMD 창을 찍으려면, 스크립트를 실행하는 터미널 앱에 화면 기록 권한이 있어야 합니다(시스템 설정 > 개인정보 보호 및 보안 > 화면 및 시스템 오디오 기록). mdr는 자기 창을 스스로 찍으므로 권한이 필요 없습니다.
 

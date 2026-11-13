@@ -113,7 +113,8 @@ python3 - "$out" "$failed_snaps" <<'PY' | tee "$out/SUMMARY.txt"
 import json, os, subprocess, sys, datetime, statistics
 out, failed_snaps = sys.argv[1], int(sys.argv[2])
 commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
-dirty = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout.strip() != ""
+# 결과 폴더(output/)는 이 스크립트가 바꾸므로 빼고 봅니다.
+dirty = subprocess.run(["git", "status", "--porcelain", "--", ".", ":!output"], capture_output=True, text=True).stdout.strip() != ""
 print(f"검증 시각 {datetime.datetime.now():%Y-%m-%d %H:%M}, 커밋 {commit}{' + 커밋하지 않은 변경' if dirty else ''}")
 
 def load(name):
