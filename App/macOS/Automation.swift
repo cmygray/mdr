@@ -41,7 +41,8 @@ enum LaunchClock {
 ///
 ///     mdr.app/Contents/MacOS/mdr FILE -snapshot out.png [-size 1000x690] [-appearance dark]
 ///         [-scrollTo "제목 일부"] [-scrollFraction 0.5] [-sidebar hide] [-fontScale 1.25]
-///         [-codeScroll 200] [-persist YES] [-metrics out.json] [-wait 0.5] [-exit YES]
+///         [-codeScroll 200] [-outlineRow 12] [-perform "zoomIn:,widenMeasure:"] [-persist YES]
+///         [-metrics out.json] [-wait 0.5] [-exit YES]
 final class Automation {
     static let shared = Automation()
 
@@ -59,6 +60,10 @@ final class Automation {
     private(set) var persistsPosition = false
     /// 화면에 보이는 첫 코드 블록을 가로로 이만큼 스크롤합니다(가로 스크롤 검증용).
     private(set) var codeScroll: CGFloat?
+    /// 목차에서 이 줄을 누른 것처럼 선택합니다(목차 이동 검증용).
+    private(set) var outlineRow: Int?
+    /// 메뉴 항목의 동작 이름들입니다. 메뉴를 누른 것과 같은 경로로 차례로 실행합니다(메뉴 연결 검증용).
+    private(set) var menuActions: [String] = []
 
     var isActive: Bool {
         snapshotURL != nil || metricsURL != nil || exitWhenDone
@@ -90,6 +95,8 @@ final class Automation {
             case "-exit": exitWhenDone = value == "YES"
             case "-persist": persistsPosition = value == "YES"
             case "-codeScroll": codeScroll = Double(value).map { CGFloat($0) }
+            case "-outlineRow": outlineRow = Int(value)
+            case "-perform": menuActions = value.split(separator: ",").map(String.init)
             default: break
             }
         }
@@ -99,6 +106,12 @@ final class Automation {
         guard isActive else { return }
         let reader = controller.readerController
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
+            for name in menuActions {
+                Self.performMenuItem(action: NSSelectorFromString(name), in: controller.window)
+            }
+            if let outlineRow {
+                controller.outlineController.selectRow(outlineRow)
+            }
             let outline = reader.rendered?.outline ?? []
             if let scrollHeading, let item = outline.first(where: { $0.title.hasPrefix(scrollHeading) })
                 ?? outline.first(where: { $0.title.contains(scrollHeading) }) {
@@ -126,6 +139,10 @@ final class Automation {
             var metrics = Metrics.collect(from: controller.readerController)
             metrics["launchMs"] = LaunchClock.snapshot
             metrics["tokenReloads"] = StyleStore.shared.reloadCount
+            metrics["fontScale"] = StyleStore.shared.settings.fontScale
+            metrics["measureScale"] = StyleStore.shared.settings.measureScale
+            metrics["sidebarCollapsed"] = controller.isSidebarCollapsed
+            if let outlineRow { metrics["outlineRowTitle"] = controller.outlineController.title(atRow: outlineRow) ?? "" }
             if !codeBlock.isEmpty { metrics["codeBlock"] = codeBlock }
             if let data = try? JSONSerialization.data(withJSONObject: metrics, options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: metricsURL)
@@ -135,6 +152,28 @@ final class Automation {
             controller.savePosition()
             UserDefaults.standard.synchronize()
             exit(0)
+        }
+    }
+
+    /// 주 메뉴에서 그 동작을 가진 항목을 찾아, 사용자가 고른 것처럼 실행합니다.
+    /// 대상이 정해지지 않은 항목은 그 창의 응답 경로(first responder부터)로 보냅니다. 자동화 실행은
+    /// 앱이 활성 상태가 아닐 수 있어서, 활성 창에 기대지 않고 창을 직접 지정합니다.
+    private static func performMenuItem(action: Selector, in window: NSWindow?) {
+        func find(in menu: NSMenu) -> NSMenuItem? {
+            for item in menu.items {
+                if item.action == action { return item }
+                if let found = item.submenu.flatMap(find(in:)) { return found }
+            }
+            return nil
+        }
+        guard let menu = NSApp.mainMenu, let item = find(in: menu) else {
+            NSLog("mdr: 메뉴에 %@ 동작이 없습니다", NSStringFromSelector(action))
+            return
+        }
+        if let target = item.target {
+            NSApp.sendAction(action, to: target, from: item)
+        } else if window?.firstResponder?.tryToPerform(action, with: item) != true {
+            NSLog("mdr: %@ 동작을 받을 대상이 없습니다", NSStringFromSelector(action))
         }
     }
 

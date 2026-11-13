@@ -43,6 +43,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     private var readerDocument: Document? { document as? Document }
 
+    var isSidebarCollapsed: Bool { sidebarItem.isCollapsed }
+
     init(document: Document) {
         LaunchClock.mark("windowInitStart")
         let automation = Automation.shared
@@ -74,7 +76,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.toolbar = toolbar
         window.toolbarStyle = .unified
         window.titlebarAppearsTransparent = true
-        window.tabbingMode = .preferred
+        // 새 문서를 탭으로 열지 창으로 열지는 시스템 설정(문서를 열 때 탭 선호)을 따릅니다.
+        window.tabbingMode = .automatic
         window.delegate = self
         window.minSize = NSSize(width: 480, height: 320)
         if automation.isActive {
@@ -130,7 +133,10 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         let saved = remembersPosition ? readerDocument.fileURL.flatMap(ScrollPositionStore.anchor(for:)) : nil
         readerController.display(readerDocument, restoring: saved)
         window?.makeFirstResponder(readerController.textView)
-        window?.displayIfNeeded()
+        // 창을 띄우기 전이라면 `showWindow`가 띄운 뒤에 한 번만 그립니다.
+        if window?.isVisible == true {
+            window?.displayIfNeeded()
+        }
         LaunchClock.mark("displayed")
         Automation.shared.documentDidDisplay(self)
     }

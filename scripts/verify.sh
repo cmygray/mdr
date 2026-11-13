@@ -57,6 +57,14 @@ scripts/snap.sh fixtures/03-images-typesetting.md "$out/scroll-memory-2-restored
 scripts/snap.sh fixtures/02-english-readme.md "$out/scroll-memory-3-other.png" -size $size -persist YES \
   -metrics "$out/scroll-memory-3.json" 2>/dev/null
 
+echo "== 6. 메뉴 동작: 글자 크게 두 번, 본문 폭 넓게 한 번, 사이드바 가리기"
+scripts/snap.sh fixtures/03-images-typesetting.md "$out/menu-zoom-wide-nosidebar.png" -size $size \
+  -perform "zoomIn:,zoomIn:,widenMeasure:,toggleSidebar:" -wait 1.2 -metrics "$out/menu.json" 2>/dev/null
+
+echo "== 7. 목차에서 제목을 고르면 그 자리로 이동"
+scripts/snap.sh fixtures/03-images-typesetting.md "$out/outline-jump.png" -size $size -outlineRow 21 \
+  -metrics "$out/outline-jump.json" 2>/dev/null
+
 echo "== 요약"
 python3 - "$out" <<'PY'
 import json, sys, os
@@ -100,6 +108,16 @@ s1, s2, s3 = load("scroll-memory-1.json"), load("scroll-memory-2.json"), load("s
 check("스크롤 위치 기억", s1["topCharacterIndex"] > 0 and s1["topCharacterIndex"] == s2["topCharacterIndex"],
       f'저장한 위치 {s1["topCharacterIndex"]}("{s1["topHeading"]}"), 다시 열었을 때 {s2["topCharacterIndex"]}("{s2["topHeading"]}")')
 check("스크롤 위치는 문서별", s3["topCharacterIndex"] == 0, f'다른 문서의 위치 {s3["topCharacterIndex"]}')
+base, menu = load("03-images-typesetting-light.json"), load("menu.json")
+check("메뉴: 글자 크기", menu["fontScale"] == 1.125 and menu["bodySize"] == 18,
+      f'배율 {menu["fontScale"]}, 본문 {base["bodySize"]}pt → {menu["bodySize"]}pt')
+check("메뉴: 본문 폭", menu["measureScale"] == 1.125 and abs(menu["measure"] - base["measure"] * 1.125 * 1.125) <= 1,
+      f'배율 {menu["measureScale"]}, 본문 폭 {base["measure"]}pt → {menu["measure"]}pt (글자 크기 배율 포함)')
+check("메뉴: 사이드바 가리기", menu["sidebarCollapsed"] and menu["viewWidth"] > base["viewWidth"],
+      f'본문 영역 폭 {base["viewWidth"]}pt → {menu["viewWidth"]}pt')
+jump = load("outline-jump.json")
+check("목차 이동", jump["outlineRowTitle"] != "" and jump["topHeading"] == jump["outlineRowTitle"],
+      f'목차 22번째 줄 "{jump["outlineRowTitle"]}" → 화면 맨 위 절 "{jump["topHeading"]}" (목차 {jump["outlineCount"]}줄)')
 print("전체 결과:", "통과" if ok else "실패 있음")
 sys.exit(0 if ok else 1)
 PY

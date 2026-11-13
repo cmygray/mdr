@@ -47,6 +47,16 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         tableView.reloadData()
     }
 
+    /// 그 줄을 누른 것처럼 선택합니다(검증용). 선택이 바뀌면 `onSelect`가 불립니다.
+    func selectRow(_ row: Int) {
+        guard items.indices.contains(row) else { return }
+        tableView.selectRowIndexes([row], byExtendingSelection: false)
+    }
+
+    func title(atRow row: Int) -> String? {
+        items.indices.contains(row) ? items[row].title : nil
+    }
+
     /// 본문의 맨 위 위치가 속한 절을 선택 상태로 만듭니다.
     func highlight(characterIndex: Int) {
         var low = 0

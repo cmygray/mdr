@@ -17,13 +17,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         LaunchClock.mark("didFinishLaunching")
     }
 
-    /// 문서 없이 켜면 빈 문서를 만들지 않고 열기 창을 띄웁니다.
+    /// 문서 없이 켜거나, 창이 없을 때 Dock 아이콘을 누르면 빈 문서 대신 열기 창을 띄웁니다.
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        false
+        !Automation.shared.isActive
     }
 
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        false
+        NSDocumentController.shared.openDocument(nil)
+        return true
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {

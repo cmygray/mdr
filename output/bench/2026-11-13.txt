@@ -1,0 +1,82 @@
+# 문서 여는 속도 측정 (scripts/bench.swift)
+날짜: 2026-11-13 09:24
+기기: Apple M4 Max, macOS 26.6.2
+mdr: Release 빌드, QuickMD: 1.14.0
+화면 잠금 상태: "CGSSessionScreenIsLocked"=Yes
+
+## 큰 문서: 1044455 바이트 (fixture 세 개를 16번 이어 붙임)
+앱: mdr.app (dev.mdr.app), 방식: cold, 반복: 5
+  1: window 420 ms, settled 979 ms, cpu 319 ms
+  2: window 450 ms, settled 1002 ms, cpu 330 ms
+  3: window 441 ms, settled 966 ms, cpu 323 ms
+  4: window 419 ms, settled 966 ms, cpu 324 ms
+  5: window 451 ms, settled 1010 ms, cpu 334 ms
+  window 중앙값 441 (최소 419, 최대 451)
+  settled 중앙값 979 (최소 966, 최대 1010)
+  cpu 중앙값 324 (최소 319, 최대 334)
+앱: mdr.app (dev.mdr.app), 방식: warm, 반복: 5
+  1: window 251 ms, settled 251 ms, cpu 194 ms
+  2: window 267 ms, settled 829 ms, cpu 225 ms
+  3: window 261 ms, settled 261 ms, cpu 188 ms
+  4: window 254 ms, settled 254 ms, cpu 199 ms
+  5: window 259 ms, settled 259 ms, cpu 193 ms
+  window 중앙값 259 (최소 251, 최대 267)
+  settled 중앙값 259 (최소 251, 최대 829)
+  cpu 중앙값 194 (최소 188, 최대 225)
+앱: QuickMD.app (pl.falami.studio.QuickMD), 방식: cold, 반복: 5
+  1: window 384 ms, settled 1528 ms, cpu 1398 ms
+  2: window 374 ms, settled 1532 ms, cpu 1401 ms
+  3: window 371 ms, settled 1520 ms, cpu 1400 ms
+  4: window 391 ms, settled 1539 ms, cpu 1395 ms
+  5: window 358 ms, settled 1501 ms, cpu 1399 ms
+  window 중앙값 374 (최소 358, 최대 391)
+  settled 중앙값 1528 (최소 1501, 최대 1539)
+  cpu 중앙값 1399 (최소 1395, 최대 1401)
+앱: QuickMD.app (pl.falami.studio.QuickMD), 방식: warm, 반복: 5
+  1: window 193 ms, settled 1299 ms, cpu 1253 ms
+  2: window 164 ms, settled 1314 ms, cpu 1271 ms
+  3: window 175 ms, settled 1286 ms, cpu 1245 ms
+  4: window 183 ms, settled 1316 ms, cpu 1269 ms
+  5: window 175 ms, settled 1310 ms, cpu 1271 ms
+  window 중앙값 175 (최소 164, 최대 193)
+  settled 중앙값 1310 (최소 1286, 최대 1316)
+  cpu 중앙값 1269 (최소 1245, 최대 1271)
+
+## 보통 문서: 58006 바이트 (fixtures/03-images-typesetting.md)
+앱: mdr.app (dev.mdr.app), 방식: cold, 반복: 5
+  1: window 407 ms, settled 983 ms, cpu 278 ms
+  2: window 422 ms, settled 1004 ms, cpu 292 ms
+  3: window 430 ms, settled 1017 ms, cpu 292 ms
+  4: window 416 ms, settled 430 ms, cpu 264 ms
+  5: window 410 ms, settled 944 ms, cpu 283 ms
+  window 중앙값 416 (최소 407, 최대 430)
+  settled 중앙값 983 (최소 430, 최대 1017)
+  cpu 중앙값 283 (최소 264, 최대 292)
+앱: mdr.app (dev.mdr.app), 방식: warm, 반복: 5
+  1: window 178 ms, settled 816 ms, cpu 126 ms
+  2: window 180 ms, settled 805 ms, cpu 114 ms
+  3: window 179 ms, settled 800 ms, cpu 122 ms
+  4: window 179 ms, settled 802 ms, cpu 123 ms
+  5: window 171 ms, settled 821 ms, cpu 136 ms
+  window 중앙값 179 (최소 171, 최대 180)
+  settled 중앙값 805 (최소 800, 최대 821)
+  cpu 중앙값 123 (최소 114, 최대 136)
+앱: QuickMD.app (pl.falami.studio.QuickMD), 방식: cold, 반복: 5
+  1: window 351 ms, settled 440 ms, cpu 331 ms
+  2: window 407 ms, settled 494 ms, cpu 322 ms
+  3: window 382 ms, settled 457 ms, cpu 319 ms
+  4: window 390 ms, settled 480 ms, cpu 320 ms
+  5: window 412 ms, settled 498 ms, cpu 320 ms
+  window 중앙값 390 (최소 351, 최대 412)
+  settled 중앙값 480 (최소 440, 최대 498)
+  cpu 중앙값 320 (최소 319, 최대 331)
+앱: QuickMD.app (pl.falami.studio.QuickMD), 방식: warm, 반복: 5
+  1: window 164 ms, settled 231 ms, cpu 190 ms
+  2: window 166 ms, settled 237 ms, cpu 178 ms
+  3: window 169 ms, settled 236 ms, cpu 181 ms
+  4: window 153 ms, settled 223 ms, cpu 178 ms
+  5: window 169 ms, settled 243 ms, cpu 184 ms
+  window 중앙값 166 (최소 153, 최대 169)
+  settled 중앙값 236 (최소 223, 최대 243)
+  cpu 중앙값 181 (최소 178, 최대 190)
+
