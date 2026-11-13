@@ -58,6 +58,7 @@ public final class ResolvedStyle {
     private let colors: StyleTokens.Colors
     private var fontCache: [FontKey: PlatformFont] = [:]
     private var italicCache: [FontKey: PlatformFont?] = [:]
+    private var namedColors: [String: PlatformColor] = [:]
 
     private struct FontKey: Hashable {
         var role: FontRole
@@ -136,7 +137,10 @@ public final class ResolvedStyle {
 
     /// 토큰의 색 이름(`heading`, `secondaryText` 등) 또는 `#RRGGBB`를 색으로 바꿉니다.
     public func color(named name: String) -> PlatformColor {
-        PlatformColor.hex(colors.hex(named: name)) ?? palette.text
+        if let cached = namedColors[name] { return cached }
+        let color = PlatformColor.hex(colors.hex(named: name)) ?? palette.text
+        namedColors[name] = color
+        return color
     }
 
     public var lineBreakStrategy: NSParagraphStyle.LineBreakStrategy {

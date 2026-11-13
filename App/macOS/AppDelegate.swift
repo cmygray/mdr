@@ -3,9 +3,12 @@ import MdrKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationWillFinishLaunching(_ notification: Notification) {
+        LaunchClock.mark("appInit")
         FontFactory.registerBundledFonts()
+        LaunchClock.mark("fontsRegistered")
         BlockViewProvider.install()
         StyleStore.shared.start()
+        LaunchClock.mark("tokensLoaded")
         NSApp.mainMenu = makeMenu()
         LaunchClock.mark("willFinishLaunching")
     }

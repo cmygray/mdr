@@ -62,7 +62,7 @@ public struct ListItem: Equatable, Sendable {
 }
 
 public struct Table: Equatable, Sendable {
-    public enum Alignment: Equatable, Sendable { case leading, center, trailing }
+    public enum Alignment: Hashable, Sendable { case leading, center, trailing }
     public var alignments: [Alignment]
     public var header: [[Inline]]
     public var rows: [[[Inline]]]

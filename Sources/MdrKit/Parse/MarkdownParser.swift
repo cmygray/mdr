@@ -74,47 +74,58 @@ public enum MarkdownParser {
 
     /// 줄 맨 앞의 `[^label]:`를 `\[^label]:`로 바꿉니다. 그대로 두면 cmark가
     /// 내용이 한 단어인 각주 정의를 링크 참조 정의로 읽어 문서에서 지워 버립니다.
+    /// 큰 문서에서도 빠르도록 UTF-8 바이트로 줄을 훑습니다.
     static func escapeFootnoteDefinitions(_ source: String) -> String {
         guard source.contains("[^") else { return source }
-        var out = ""
-        out.reserveCapacity(source.utf8.count + 64)
-        var fence: (char: Character, count: Int)?
-        source.enumerateSubstrings(in: source.startIndex..., options: [.byLines, .substringNotRequired]) { _, range, enclosing, _ in
-            let line = source[range]
-            let trimmed = line.drop(while: { $0 == " " })
-            let indent = line.count - trimmed.count
-            if let open = fence {
-                if indent <= 3, let run = fenceRun(trimmed), run.char == open.char, run.count >= open.count,
-                   trimmed.dropFirst(run.count).allSatisfy({ $0 == " " || $0 == "\t" }) {
-                    fence = nil
-                }
-                out += source[enclosing]
-                return
-            }
-            if indent <= 3, let run = fenceRun(trimmed) {
-                fence = run
-                out += source[enclosing]
-                return
-            }
-            if indent <= 3, trimmed.hasPrefix("[^"),
-               let close = trimmed.firstIndex(of: "]"),
-               trimmed.index(after: close) < trimmed.endIndex,
-               trimmed[trimmed.index(after: close)] == ":" {
-                out += line.prefix(indent)
-                out += "\\"
-                out += trimmed
-                out += source[range.upperBound..<enclosing.upperBound]
-                return
-            }
-            out += source[enclosing]
-        }
-        return out
-    }
+        let bytes = Array(source.utf8)
+        var out: [UInt8] = []
+        out.reserveCapacity(bytes.count + 64)
+        var fence: (byte: UInt8, count: Int)?
+        var lineStart = 0
 
-    private static func fenceRun(_ line: Substring) -> (char: Character, count: Int)? {
-        guard let first = line.first, first == "`" || first == "~" else { return nil }
-        let count = line.prefix(while: { $0 == first }).count
-        return count >= 3 ? (first, count) : nil
+        while lineStart < bytes.count {
+            var lineEnd = lineStart
+            while lineEnd < bytes.count, bytes[lineEnd] != 0x0A { lineEnd += 1 }
+            let next = min(lineEnd + 1, bytes.count)
+
+            var content = lineStart
+            while content < lineEnd, bytes[content] == 0x20 { content += 1 }
+            let indent = content - lineStart
+            var escape = false
+
+            if indent <= 3, content < lineEnd {
+                let first = bytes[content]
+                if first == 0x60 || first == 0x7E {
+                    var run = content
+                    while run < lineEnd, bytes[run] == first { run += 1 }
+                    let count = run - content
+                    if count >= 3 {
+                        if let open = fence {
+                            // 닫는 울타리는 여는 것과 같은 글자로 같은 길이 이상이고, 뒤에 공백만 옵니다.
+                            var rest = run
+                            while rest < lineEnd, bytes[rest] == 0x20 || bytes[rest] == 0x09 || bytes[rest] == 0x0D { rest += 1 }
+                            if open.byte == first, count >= open.count, rest == lineEnd { fence = nil }
+                        } else {
+                            fence = (first, count)
+                        }
+                    }
+                } else if fence == nil, first == 0x5B, content + 1 < lineEnd, bytes[content + 1] == 0x5E {
+                    var close = content + 2
+                    while close < lineEnd, bytes[close] != 0x5D { close += 1 }
+                    escape = close + 1 < lineEnd && bytes[close + 1] == 0x3A
+                }
+            }
+
+            if escape {
+                out.append(contentsOf: bytes[lineStart..<content])
+                out.append(0x5C)
+                out.append(contentsOf: bytes[content..<next])
+            } else {
+                out.append(contentsOf: bytes[lineStart..<next])
+            }
+            lineStart = next
+        }
+        return String(decoding: out, as: UTF8.self)
     }
 }
 

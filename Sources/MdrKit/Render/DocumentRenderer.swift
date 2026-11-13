@@ -40,6 +40,11 @@ public final class DocumentRenderer {
     private let environment = BlockLayoutEnvironment()
     private var previousBottomMargin: CGFloat?
     private var lastDecoration: BlockDecoration?
+    /// 지금 만들고 있는 문단의 스타일과 장식입니다. `attributes(for:)`가 글자 속성에 함께 넣습니다.
+    private var currentParagraph: NSParagraphStyle?
+    private var currentDecoration: BlockDecoration?
+    private var paragraphCache: [ParagraphKey: NSParagraphStyle] = [:]
+    private var attributeCache: [AttributeKey: [NSAttributedString.Key: Any]] = [:]
     private lazy var inlineCode = InlineCodeDecoration(
         background: style.palette.inlineCodeBackground,
         cornerRadius: CGFloat(style.tokens.inlineCode.cornerRadius),
@@ -96,6 +101,38 @@ public final class DocumentRenderer {
         var shift: CGFloat = 0
     }
 
+    /// 같은 서식의 속성 사전을 다시 만들지 않기 위한 열쇠입니다(링크가 없는 글자에만 씁니다).
+    private struct AttributeKey: Hashable {
+        var role: FontRole
+        var size: CGFloat
+        var weight: Double
+        var italic: Bool
+        var color: ObjectIdentifier
+        var tracking: Double
+        var strikethrough: Bool
+        var shift: CGFloat
+        var paragraph: ObjectIdentifier?
+    }
+
+    /// 같은 모양의 문단 스타일을 하나만 만들어 나눠 쓰기 위한 열쇠입니다.
+    private struct ParagraphKey: Hashable {
+        var lineHeight: CGFloat
+        var fixed: Bool
+        var firstIndent: CGFloat
+        var headIndent: CGFloat
+        var before: CGFloat
+        var after: CGFloat
+        var markerEnd: CGFloat?
+    }
+
+    /// 목록 항목처럼 첫 줄에 표지를 내어 쓰는 문단의 들여쓰기입니다.
+    private struct Hanging {
+        var first: CGFloat
+        var head: CGFloat
+        /// 표지를 오른쪽 맞춤하는 위치
+        var markerEnd: CGFloat
+    }
+
     private var em: CGFloat { style.em }
 
     // MARK: - Blocks
@@ -140,10 +177,11 @@ public final class DocumentRenderer {
             let size = (em * CGFloat(style.tokens.footnote.size)).rounded()
             let lineHeight = (size * CGFloat(style.tokens.footnote.lineHeight)).rounded()
             let text = TextStyle(size: size, weight: style.tokens.body.weight, color: style.palette.secondaryText)
+            beginParagraph(top: 0, bottom: CGFloat(style.tokens.body.paragraphSpacing) * em, lineHeight: lineHeight,
+                           font: style.font(.body, size: size, weight: text.weight), context: context)
             let line = NSMutableAttributedString()
             append([.link(destination: source, children: [.text(source)])], to: line, style: text)
-            emit(line, top: 0, bottom: CGFloat(style.tokens.body.paragraphSpacing) * em, lineHeight: lineHeight,
-                 font: style.font(.body, size: size, weight: text.weight), context: context)
+            endParagraph(line)
         }
     }
 
@@ -160,10 +198,11 @@ public final class DocumentRenderer {
         let slug = uniqueSlug(for: title)
         anchors[slug] = location
 
+        beginParagraph(top: CGFloat(token.spaceBefore) * em, bottom: CGFloat(token.spaceAfter) * em, lineHeight: lineHeight,
+                       font: font, context: context)
         let line = NSMutableAttributedString()
         append(content, to: line, style: text)
-        emit(line, top: CGFloat(token.spaceBefore) * em, bottom: CGFloat(token.spaceAfter) * em, lineHeight: lineHeight,
-             font: font, context: context)
+        endParagraph(line)
     }
 
     private func bodyTextStyle(in context: Context) -> TextStyle {
@@ -174,12 +213,18 @@ public final class DocumentRenderer {
         context.paragraphBottom ?? CGFloat(style.tokens.body.paragraphSpacing) * em
     }
 
-    private func renderParagraph(_ content: [Inline], in context: Context, prefix: NSAttributedString? = nil, configure: ((NSMutableParagraphStyle) -> Void)? = nil) {
+    /// `marker`를 주면 목록 항목으로 그립니다. 표지는 `hanging.markerEnd`에 오른쪽 맞춤합니다.
+    private func renderParagraph(_ content: [Inline], in context: Context, marker: String? = nil, hanging: Hanging? = nil) {
+        beginParagraph(top: 0, bottom: paragraphBottom(in: context), lineHeight: style.bodyLineHeight,
+                       font: style.bodyFont, context: context, hanging: hanging)
         let line = NSMutableAttributedString()
-        if let prefix { line.append(prefix) }
+        if let marker {
+            var markerStyle = bodyTextStyle(in: context)
+            markerStyle.color = style.palette.marker
+            line.append(NSAttributedString(string: "\t\(marker)\t", attributes: attributes(for: markerStyle)))
+        }
         let hasImage = append(content, to: line, style: bodyTextStyle(in: context))
-        emit(line, top: 0, bottom: paragraphBottom(in: context), lineHeight: style.bodyLineHeight,
-             font: hasImage ? nil : style.bodyFont, context: context, configure: configure)
+        endParagraph(line, releasesLineHeight: hasImage)
     }
 
     private func renderBlockQuote(_ blocks: [Block], in context: Context) {
@@ -228,24 +273,14 @@ public final class DocumentRenderer {
         inner.listDepth += 1
         inner.paragraphBottom = itemSpacing
 
+        let hanging = Hanging(first: context.indent, head: inner.indent, markerEnd: inner.indent - gap)
         for (index, item) in list.items.enumerated() {
-            var markerStyle = bodyTextStyle(in: context)
-            markerStyle.color = style.palette.marker
-            let prefix = NSMutableAttributedString(string: "\t\(markers[index])\t", attributes: attributes(for: markerStyle))
-            let configure: (NSMutableParagraphStyle) -> Void = { paragraph in
-                paragraph.firstLineHeadIndent = context.indent
-                paragraph.headIndent = inner.indent
-                paragraph.tabStops = [
-                    NSTextTab(textAlignment: .right, location: inner.indent - gap),
-                    NSTextTab(textAlignment: .left, location: inner.indent),
-                ]
-            }
             var rest = item.blocks[...]
             if case .paragraph(let content)? = rest.first {
-                renderParagraph(content, in: inner, prefix: prefix, configure: configure)
+                renderParagraph(content, in: inner, marker: markers[index], hanging: hanging)
                 rest = rest.dropFirst()
             } else {
-                renderParagraph([], in: inner, prefix: prefix, configure: configure)
+                renderParagraph([], in: inner, marker: markers[index], hanging: hanging)
             }
             render(Array(rest), in: inner)
             previousBottomMargin = itemSpacing
@@ -292,20 +327,26 @@ public final class DocumentRenderer {
         func cell(_ content: [Inline], column: Int, header: Bool) -> NSAttributedString {
             let weight = header ? token.headerWeight : style.tokens.body.weight
             let text = TextStyle(size: size, weight: weight, color: header ? style.palette.heading : context.color)
+            let alignment = column < table.alignments.count ? table.alignments[column] : .leading
+            currentParagraph = cellParagraphs[alignment] ?? {
+                let paragraph = NSMutableParagraphStyle()
+                paragraph.minimumLineHeight = lineHeight
+                paragraph.maximumLineHeight = lineHeight
+                paragraph.lineBreakStrategy = style.lineBreakStrategy
+                switch alignment {
+                case .leading: paragraph.alignment = .natural
+                case .center: paragraph.alignment = .center
+                case .trailing: paragraph.alignment = .right
+                }
+                cellParagraphs[alignment] = paragraph
+                return paragraph
+            }()
+            currentDecoration = nil
             let string = NSMutableAttributedString()
             append(content, to: string, style: text)
-            let paragraph = NSMutableParagraphStyle()
-            paragraph.minimumLineHeight = lineHeight
-            paragraph.maximumLineHeight = lineHeight
-            paragraph.lineBreakStrategy = style.lineBreakStrategy
-            switch column < table.alignments.count ? table.alignments[column] : .leading {
-            case .leading: paragraph.alignment = .natural
-            case .center: paragraph.alignment = .center
-            case .trailing: paragraph.alignment = .right
-            }
-            string.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: string.length))
             return string
         }
+        var cellParagraphs: [Table.Alignment: NSParagraphStyle] = [:]
         func row(_ cells: [[Inline]], header: Bool) -> [NSAttributedString] {
             (0..<columns).map { cell($0 < cells.count ? cells[$0] : [], column: $0, header: header) }
         }
@@ -341,9 +382,12 @@ public final class DocumentRenderer {
         decoration.ruleThickness = CGFloat(token.thickness)
         decoration.ruleColor = style.palette.border
         decoration.ruleInset = context.indent
-        let line = NSMutableAttributedString(string: "\u{00A0}", attributes: [.font: style.font(.body, size: 2, weight: 400)])
-        emit(line, top: CGFloat(token.spacing) * em, bottom: CGFloat(token.spacing) * em,
-             lineHeight: max(CGFloat(token.thickness), 2), font: nil, fixedLineHeight: true, context: context, decoration: decoration)
+        beginParagraph(top: CGFloat(token.spacing) * em, bottom: CGFloat(token.spacing) * em,
+                       lineHeight: max(CGFloat(token.thickness), 2), font: nil, fixedLineHeight: true,
+                       context: context, decoration: decoration)
+        var attributes = paragraphAttributes
+        attributes[.font] = style.font(.body, size: 2, weight: 400)
+        endParagraph(NSMutableAttributedString(string: "\u{00A0}", attributes: attributes))
     }
 
     private func renderHTMLBlock(_ html: String, in context: Context) {
@@ -375,18 +419,13 @@ public final class DocumentRenderer {
         let gap = (CGFloat(style.tokens.list.markerGap) * em).rounded()
         let column = max((CGFloat(style.tokens.list.indent) * em).rounded(),
                          ceil((marker as NSString).size(withAttributes: [.font: font]).width) + gap)
+        beginParagraph(top: 0, bottom: CGFloat(token.spacing) * em, lineHeight: lineHeight, font: font, context: context,
+                       hanging: Hanging(first: context.indent, head: context.indent + column, markerEnd: context.indent + column - gap))
         var markerStyle = text
         markerStyle.color = style.palette.marker
         let line = NSMutableAttributedString(string: "\t\(marker)\t", attributes: attributes(for: markerStyle))
         append(content, to: line, style: text)
-        emit(line, top: 0, bottom: CGFloat(token.spacing) * em, lineHeight: lineHeight, font: font, context: context) { paragraph in
-            paragraph.firstLineHeadIndent = context.indent
-            paragraph.headIndent = context.indent + column
-            paragraph.tabStops = [
-                NSTextTab(textAlignment: .right, location: context.indent + column - gap),
-                NSTextTab(textAlignment: .left, location: context.indent + column),
-            ]
-        }
+        endParagraph(line)
     }
 
     // MARK: - Emission
@@ -406,10 +445,12 @@ public final class DocumentRenderer {
         }
     }
 
-    /// 문단 하나를 출력에 붙입니다. `top`/`bottom`은 이 블록의 위·아래 여백(pt)입니다.
+    /// 문단을 시작합니다. `top`/`bottom`은 이 블록의 위·아래 여백(pt)입니다.
     /// `font`는 문단의 기준 글꼴입니다. 주면 줄 높이를 고정하고 글자를 줄 상자 가운데로 보정합니다.
-    private func emit(
-        _ content: NSMutableAttributedString,
+    ///
+    /// 문단 스타일을 글자를 붙이기 전에 정해 두고 글자 속성에 함께 넣습니다. 나중에 문단 전체에
+    /// 덧입히면 글자 조각마다 속성 사전을 다시 만들어 큰 문서에서 느립니다.
+    private func beginParagraph(
         top: CGFloat,
         bottom: CGFloat,
         lineHeight: CGFloat,
@@ -417,45 +458,96 @@ public final class DocumentRenderer {
         fixedLineHeight: Bool? = nil,
         context: Context,
         decoration: BlockDecoration? = nil,
-        configure: ((NSMutableParagraphStyle) -> Void)? = nil
+        hanging: Hanging? = nil
     ) {
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.minimumLineHeight = lineHeight
-        if fixedLineHeight ?? (font != nil) { paragraph.maximumLineHeight = lineHeight }
-        paragraph.lineBreakStrategy = style.lineBreakStrategy
-        paragraph.firstLineHeadIndent = context.indent
-        paragraph.headIndent = context.indent
         // 문서 맨 처음 블록 위에는 여백을 두지 않습니다(페이지 여백은 view가 줍니다).
         let gap = previousBottomMargin.map { max($0, top) } ?? 0
         let half = font.map { style.halfLeading(for: $0, lineHeight: lineHeight) } ?? 0
-        paragraph.paragraphSpacingBefore = max(0, gap - half).rounded()
-        paragraph.paragraphSpacing = half.rounded()
-        configure?(paragraph)
         previousBottomMargin = bottom
 
-        content.append(NSAttributedString(string: "\n", attributes: content.length > 0
-            ? content.attributes(at: content.length - 1, effectiveRange: nil) : [.font: style.bodyFont]))
-        let range = NSRange(location: 0, length: content.length)
-        content.addAttribute(.paragraphStyle, value: paragraph, range: range)
+        let key = ParagraphKey(
+            lineHeight: lineHeight,
+            fixed: fixedLineHeight ?? (font != nil),
+            firstIndent: hanging?.first ?? context.indent,
+            headIndent: hanging?.head ?? context.indent,
+            before: max(0, gap - half).rounded(),
+            after: half.rounded(),
+            markerEnd: hanging?.markerEnd
+        )
+        currentParagraph = paragraphStyle(for: key)
+        currentDecoration = decoration ?? (context.quoteBars.isEmpty ? nil : makeDecoration(in: context))
+        if let currentDecoration { lastDecoration = currentDecoration }
+    }
 
-        let effective = decoration ?? (context.quoteBars.isEmpty ? nil : makeDecoration(in: context))
-        if let effective {
-            content.addAttribute(.mdrDecoration, value: effective, range: range)
-            lastDecoration = effective
+    private func paragraphStyle(for key: ParagraphKey) -> NSParagraphStyle {
+        if let cached = paragraphCache[key] { return cached }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.minimumLineHeight = key.lineHeight
+        if key.fixed { paragraph.maximumLineHeight = key.lineHeight }
+        paragraph.lineBreakStrategy = style.lineBreakStrategy
+        paragraph.firstLineHeadIndent = key.firstIndent
+        paragraph.headIndent = key.headIndent
+        paragraph.paragraphSpacingBefore = key.before
+        paragraph.paragraphSpacing = key.after
+        if let markerEnd = key.markerEnd {
+            paragraph.tabStops = [
+                NSTextTab(textAlignment: .right, location: markerEnd),
+                NSTextTab(textAlignment: .left, location: key.headIndent),
+            ]
+        }
+        paragraphCache[key] = paragraph
+        return paragraph
+    }
+
+    /// 문단 단위 속성(문단 스타일, 장식)입니다. 글자 서식 없이 붙이는 조각에 씁니다.
+    private var paragraphAttributes: [NSAttributedString.Key: Any] {
+        var attributes: [NSAttributedString.Key: Any] = [:]
+        if let currentParagraph { attributes[.paragraphStyle] = currentParagraph }
+        if let currentDecoration { attributes[.mdrDecoration] = currentDecoration }
+        return attributes
+    }
+
+    /// 문단을 끝내고 출력에 붙입니다. `releasesLineHeight`이면 줄 높이 고정을 풉니다(글 안에 이미지가 있을 때).
+    private func endParagraph(_ content: NSMutableAttributedString, releasesLineHeight: Bool = false) {
+        var newline = content.length > 0 ? content.attributes(at: content.length - 1, effectiveRange: nil) : paragraphAttributes
+        if newline[.font] == nil { newline[.font] = style.bodyFont }
+        newline[.attachment] = nil
+        newline[.link] = nil
+        content.append(NSAttributedString(string: "\n", attributes: newline))
+        if releasesLineHeight, let currentParagraph, let relaxed = currentParagraph.mutableCopy() as? NSMutableParagraphStyle {
+            relaxed.maximumLineHeight = 0
+            // 줄 높이를 고정하지 않으면 가운데 보정도 필요 없습니다.
+            relaxed.paragraphSpacingBefore += relaxed.paragraphSpacing
+            relaxed.paragraphSpacing = 0
+            content.addAttribute(.paragraphStyle, value: relaxed, range: NSRange(location: 0, length: content.length))
         }
         output.append(content)
+        currentParagraph = nil
+        currentDecoration = nil
     }
 
     private func emitAttachment(_ attachment: NSTextAttachment, spacing: CGFloat, context: Context) {
+        beginParagraph(top: spacing, bottom: max(spacing, paragraphBottom(in: context)), lineHeight: 1, font: nil, context: context)
         // 첨부 문자 줄의 높이는 첨부 크기가 정합니다. 글꼴이 줄 아래에 여분을 만들지 않게 아주 작게 둡니다.
+        var attributes = paragraphAttributes
+        attributes[.font] = style.font(.body, size: 1, weight: 400)
         let line = NSMutableAttributedString(attachment: attachment)
-        line.addAttribute(.font, value: style.font(.body, size: 1, weight: 400), range: NSRange(location: 0, length: line.length))
-        emit(line, top: spacing, bottom: max(spacing, paragraphBottom(in: context)), lineHeight: 1, font: nil, context: context)
+        line.addAttributes(attributes, range: NSRange(location: 0, length: line.length))
+        endParagraph(line)
     }
 
     // MARK: - Inlines
 
     private func attributes(for text: TextStyle) -> [NSAttributedString.Key: Any] {
+        // 링크와 장식이 없는 보통 글자는 문단 스타일까지 합친 사전을 통째로 재사용합니다.
+        let cacheable = text.link == nil && currentDecoration == nil
+        let key = AttributeKey(
+            role: text.role, size: text.size, weight: text.weight, italic: text.italic,
+            color: ObjectIdentifier(text.color), tracking: text.tracking, strikethrough: text.strikethrough,
+            shift: text.shift, paragraph: currentParagraph.map(ObjectIdentifier.init)
+        )
+        if cacheable, let cached = attributeCache[key] { return cached }
+
         var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: text.color]
         if text.italic {
             if let italic = style.italicFont(text.role, size: text.size, weight: text.weight) {
@@ -479,6 +571,9 @@ public final class DocumentRenderer {
                 attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
             }
         }
+        if let currentParagraph { attributes[.paragraphStyle] = currentParagraph }
+        if let currentDecoration { attributes[.mdrDecoration] = currentDecoration }
+        if cacheable { attributeCache[key] = attributes }
         return attributes
     }
 

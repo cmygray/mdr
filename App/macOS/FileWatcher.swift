@@ -37,7 +37,7 @@ final class FileWatcher {
         if notifyWhenOpened { scheduleChange() }
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: descriptor,
-            eventMask: [.write, .extend, .delete, .rename, .attrib],
+            eventMask: [.write, .extend, .delete, .rename],
             queue: .main
         )
         source.setEventHandler { [weak self] in

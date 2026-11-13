@@ -194,12 +194,17 @@ public enum Script: String, Sendable {
     case hangul, latin
 
     /// 한글 음절이 글자의 일정 비율을 넘으면 한글 문서로 봅니다.
+    /// 큰 문서도 빨리 끝나도록 UTF-8 바이트를 앞에서부터 일정량만 봅니다.
     public static func detect(in text: String) -> Script {
         var hangul = 0
         var latin = 0
-        for scalar in text.unicodeScalars {
-            switch scalar.value {
-            case 0xAC00...0xD7A3: hangul += 1
+        var seen = 0
+        for byte in text.utf8 {
+            seen += 1
+            if seen > 262_144 { break }
+            switch byte {
+            // 한글 음절(U+AC00~U+D7A3)의 첫 바이트는 0xEA~0xED입니다.
+            case 0xEA...0xED: hangul += 1
             case 0x41...0x5A, 0x61...0x7A: latin += 1
             default: break
             }

@@ -44,6 +44,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private var readerDocument: Document? { document as? Document }
 
     init(document: Document) {
+        LaunchClock.mark("windowInitStart")
         let automation = Automation.shared
         let size = automation.windowSize ?? NSSize(width: 1040, height: 760)
         let window = NSWindow(
@@ -98,6 +99,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         NotificationCenter.default.addObserver(self, selector: #selector(applyAppearance),
                                                name: StyleStore.didChange, object: nil)
         applyAppearance()
+        LaunchClock.mark("windowInitEnd")
     }
 
     @available(*, unavailable)
@@ -106,11 +108,25 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     override func showWindow(_ sender: Any?) {
+        if !didDisplay, let readerDocument {
+            didDisplay = true
+            _ = splitController.view
+            window?.layoutIfNeeded()
+            LaunchClock.mark("windowReady")
+            // 창을 만드는 동안 파싱이 백그라운드에서 진행됐습니다. 거의 끝났으면 잠깐 기다려 내용과 함께 띄우고,
+            // 오래 걸리는 큰 문서라면 빈 창을 먼저 띄운 뒤 끝나는 대로 채웁니다.
+            readerDocument.waitForContent(timeout: 0.1)
+            readerDocument.whenContentIsReady { [weak self] in
+                self?.displayContent()
+            }
+        }
         super.showWindow(sender)
-        guard !didDisplay, let readerDocument else { return }
-        didDisplay = true
-        _ = splitController.view
-        window?.layoutIfNeeded()
+        window?.displayIfNeeded()
+        LaunchClock.mark("windowShown")
+    }
+
+    private func displayContent() {
+        guard let readerDocument else { return }
         let saved = remembersPosition ? readerDocument.fileURL.flatMap(ScrollPositionStore.anchor(for:)) : nil
         readerController.display(readerDocument, restoring: saved)
         window?.makeFirstResponder(readerController.textView)

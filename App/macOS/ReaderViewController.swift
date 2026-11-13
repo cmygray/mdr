@@ -150,14 +150,15 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     }
 
     private func render() {
-        guard let document else { return }
+        guard let document, let content = document.content else { return }
         let store = StyleStore.shared
-        let style = store.resolvedStyle(script: document.script, appearance: view.effectiveAppearance)
+        let style = store.resolvedStyle(script: content.script, appearance: view.effectiveAppearance)
         self.style = style
         renderedScheme = style.options.scheme
 
         layoutDelegate.keepsWordsWithHangulTogether = style.tokens.body.lineBreak == "hangulWord"
-        let rendered = DocumentRenderer(style: style, baseURL: document.fileURL).render(document.parsed)
+        LaunchClock.mark("renderStart")
+        let rendered = DocumentRenderer(style: style, baseURL: document.fileURL).render(content.parsed)
         self.rendered = rendered
         LaunchClock.mark("rendered")
 
