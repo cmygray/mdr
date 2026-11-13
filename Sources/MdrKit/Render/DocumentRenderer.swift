@@ -103,7 +103,6 @@ public final class DocumentRenderer {
         var tracking: Double = 0
         var strikethrough = false
         var link: Any?
-        var underline = false
         /// 위 첨자·아래 첨자의 기준선 이동량
         var shift: CGFloat = 0
     }

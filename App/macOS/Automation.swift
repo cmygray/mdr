@@ -289,7 +289,22 @@ enum Metrics {
             ]
         }
 
+        var images = 0, codeBlocks = 0, tables = 0
+        if let text = reader.rendered?.text {
+            text.enumerateAttribute(.attachment, in: NSRange(location: 0, length: text.length)) { value, _, _ in
+                switch value {
+                case is ImageAttachment: images += 1
+                case is CodeBlockAttachment: codeBlocks += 1
+                case is TableAttachment: tables += 1
+                default: break
+                }
+            }
+        }
+
         return [
+            "imageCount": images,
+            "codeBlockCount": codeBlocks,
+            "tableCount": tables,
             "script": style.options.script.rawValue,
             "scheme": style.options.scheme.rawValue,
             "bodySize": bodySize,

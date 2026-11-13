@@ -122,7 +122,8 @@ final class CodeBlockView: NSView {
 }
 
 final class TableBlockView: NSView {
-    private let attachment: TableAttachment
+    // 첨부가 provider를, provider가 이 view를 붙들고 있습니다. 여기서 첨부를 강하게 붙들면 서로 놓지 못합니다.
+    private weak var attachment: TableAttachment?
     private let scrollView = HorizontalScrollView(frame: .zero)
     private let canvas: TableCanvasView
 
@@ -143,7 +144,7 @@ final class TableBlockView: NSView {
         super.setFrameSize(newSize)
         canvas.syncSize()
         // 본문 폭보다 넓은 표는 본문 폭을 가운데에 두고 좌우 여백으로 넓힙니다.
-        let visible = attachment.currentLayout?.visibleWidth ?? newSize.width
+        let visible = attachment?.currentLayout?.visibleWidth ?? newSize.width
         let overflow = max(0, visible - newSize.width)
         scrollView.frame = NSRect(x: -(overflow / 2).rounded(), y: 0, width: visible, height: newSize.height)
     }
@@ -151,7 +152,7 @@ final class TableBlockView: NSView {
 
 /// 표를 직접 그리는 view입니다. 배치와 그리기는 공유 코드(`TableLayout`)가 합니다.
 final class TableCanvasView: NSView {
-    private let attachment: TableAttachment
+    private weak var attachment: TableAttachment?
 
     init(attachment: TableAttachment) {
         self.attachment = attachment
@@ -167,7 +168,7 @@ final class TableCanvasView: NSView {
     override var isFlipped: Bool { true }
 
     func syncSize() {
-        guard let layout = attachment.currentLayout else { return }
+        guard let layout = attachment?.currentLayout else { return }
         if frame.size != layout.contentSize {
             setFrameSize(layout.contentSize)
         }
@@ -175,7 +176,7 @@ final class TableCanvasView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        guard let layout = attachment.currentLayout, let context = NSGraphicsContext.current?.cgContext else { return }
+        guard let layout = attachment?.currentLayout, let context = NSGraphicsContext.current?.cgContext else { return }
         layout.draw(in: context, dirtyRect: dirtyRect)
     }
 }

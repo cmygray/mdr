@@ -134,6 +134,12 @@ final class RendererTests: XCTestCase {
         XCTAssertNotNil(attachments[1] as? TableAttachment)
     }
 
+    func testPlainTextIncludesCodeAndTableContents() {
+        let (rendered, _) = render("문단 하나\n\n```\nswift build\nswift test\n```\n\n| 구성 | 기술 |\n|---|---|\n| 앱 | `Swift` |\n\n끝")
+        let text = rendered.text.mdrPlainText(in: NSRange(location: 0, length: rendered.text.length))
+        XCTAssertEqual(text, "문단 하나\nswift build\nswift test\n구성\t기술\n앱\tSwift\n끝")
+    }
+
     func testWideTableUsesBleedWidthThenScrolls() {
         let cell = String(repeating: "넓은 칸의 내용입니다 ", count: 8)
         let (rendered, _) = render("| 하나 | 둘 | 셋 |\n|---|---|---|\n| \(cell) | \(cell) | \(cell) |")

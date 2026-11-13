@@ -10,6 +10,24 @@ struct ReadingAnchor: Equatable {
 }
 
 final class ReaderTextView: NSTextView {
+    /// 선택한 부분을 붙여 넣기 좋은 글자로 돌려줍니다. 코드 블록과 표의 내용도 들어갑니다.
+    func plainTextForSelection() -> String {
+        guard let storage = textContentStorage?.textStorage else { return "" }
+        return selectedRanges
+            .map(\.rangeValue)
+            .filter { $0.length > 0 }
+            .map { storage.mdrPlainText(in: $0) }
+            .joined(separator: "\n")
+    }
+
+    override func copy(_ sender: Any?) {
+        let text = plainTextForSelection()
+        guard !text.isEmpty else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
     override func keyDown(with event: NSEvent) {
         // 스페이스로 한 화면씩 넘깁니다.
         if event.charactersIgnoringModifiers == " " {
