@@ -48,6 +48,9 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     var onPositionChange: ((ReadingAnchor) -> Void)?
     var onRender: ((RenderedDocument) -> Void)?
 
+    /// 이 글자 수까지는 목표 지점 앞을 모두 배치해 정확한 위치로 옮깁니다.
+    private static let exactLayoutLimit = 2_000_000
+
     private var lastAnchor: ReadingAnchor?
     private var laidOutWidth: CGFloat = 0
     private var isAdjustingScroll = false
@@ -234,7 +237,12 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         isAdjustingScroll = true
         defer { isAdjustingScroll = false }
         let clip = scrollView.contentView
-        // TextKit 2는 화면 밖 문단의 높이를 어림하므로, 옮긴 뒤 다시 재서 맞을 때까지 고칩니다.
+        // TextKit 2는 아직 배치하지 않은 문단의 높이를 어림합니다. 어림값으로 옮기면 엉뚱한 곳에 서므로
+        // 문서 처음부터 목표 지점까지 실제로 배치해 정확한 위치를 얻습니다. 1MB 문서 전체를 배치하는 데
+        // 약 0.25초가 걸렸습니다(2026-11-13 측정). 아주 큰 문서의 뒷부분은 어림값으로 옮긴 뒤 다시 재서 고칩니다.
+        if anchor.index <= Self.exactLayoutLimit {
+            layoutManager.ensureLayout(for: NSTextRange(location: storage.documentRange.location, end: next)!)
+        }
         for _ in 0..<4 {
             layoutManager.ensureLayout(for: NSTextRange(location: location, end: next)!)
             guard let fragment = layoutManager.textLayoutFragment(for: location) else { break }
@@ -242,6 +250,12 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
             var delta = min(anchor.delta, frame.height)
             if alignToFirstLine, let first = fragment.textLineFragments.first {
                 delta = first.typographicBounds.minY - 20
+            }
+            // 문서를 막 넣은 직후에는 view의 높이가 아직 갱신되지 않았습니다. 그대로 두면
+            // 목표 위치가 문서 밖으로 판단되어 맨 위로 잘리므로, 배치 결과에 맞춰 먼저 키웁니다.
+            let contentHeight = layoutManager.usageBoundsForTextContainer.maxY + textView.textContainerInset.height * 2
+            if textView.frame.height < contentHeight {
+                textView.setFrameSize(NSSize(width: textView.frame.width, height: contentHeight))
             }
             let top = -scrollView.contentInsets.top
             let bottom = max(top, textView.frame.height - clip.bounds.height + scrollView.contentInsets.bottom)
@@ -251,8 +265,9 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
             scrollView.reflectScrolledClipView(clip)
             layoutManager.textViewportLayoutController.layoutViewport()
         }
-        lastAnchor = currentAnchor()
-        if let lastAnchor { onPositionChange?(lastAnchor) }
+        // 요청받은 자리를 기억합니다. 아직 창 크기가 정해지기 전이었다면 배치가 끝난 뒤 다시 맞춥니다.
+        lastAnchor = alignToFirstLine ? currentAnchor() : anchor
+        if let current = currentAnchor() { onPositionChange?(current) }
     }
 
     func scroll(toCharacterIndex index: Int) {

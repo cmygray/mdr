@@ -186,7 +186,13 @@ final class Automation {
 enum Metrics {
     static func collect(from reader: ReaderViewController) -> [String: Any] {
         guard let layoutManager = reader.textView.textLayoutManager, let style = reader.style else { return [:] }
+        // 읽던 자리는 문서 전체를 배치하기 전에 잽니다. 전체 배치는 어림했던 높이를 실제 값으로 바꿔
+        // 화면에 보이는 위치를 움직입니다.
+        let topIndex = reader.currentAnchor()?.index ?? -1
+        let topHeading = reader.rendered?.outline.last(where: { $0.location <= topIndex + 1 })?.title ?? ""
+        let layoutStart = Date()
         layoutManager.ensureLayout(for: layoutManager.documentRange)
+        let fullLayoutMs = (Date().timeIntervalSince(layoutStart) * 10000).rounded() / 10
 
         var lineLengths: [Int] = []
         var hangulLineLengths: [Int] = []
@@ -258,7 +264,9 @@ enum Metrics {
             "lineBreaks": breaks,
             "lineBreaksInsideWord": breaksInsideWord,
             "lineBreaksInsideWordSamples": insideWordSamples,
-            "topCharacterIndex": reader.currentAnchor()?.index ?? -1,
+            "fullLayoutMs": fullLayoutMs,
+            "topCharacterIndex": topIndex,
+            "topHeading": topHeading,
             "outlineCount": reader.rendered?.outline.count ?? 0,
             "textLength": reader.rendered?.text.length ?? 0,
             "documentHeight": reader.textView.frame.height,
