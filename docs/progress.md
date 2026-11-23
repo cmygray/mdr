@@ -399,7 +399,7 @@ Rex 팬을 하나 새로 만들어(`rex run --split`) 그 안에서 `mdr fixture
 | tailnet 정보와 개인 정보 정리 | 닫음 | `scripts/check-private.py`가 작업 폴더와 모든 커밋에서 찾지 못함 |
 | 라이선스 | 닫음 | `LICENSE`(MIT), `README.md`의 "라이선스" 절 |
 | git 기록 다시 쓰기 | 닫음 | `git filter-repo` 세 번. 아래 "기록에서 지운 것과 바꾼 것" |
-| 1·2단계 검증 유지 | 닫음 | `scripts/verify.sh`(판정 45건), `scripts/verify-remote.sh`(33건), `scripts/verify-linux.sh`, `swift test` 50개, Go 테스트 모두 통과 |
+| 1·2단계 검증 유지 | 닫음 | 기록을 다시 쓴 뒤의 HEAD에서 `scripts/verify.sh`(판정 45건), `scripts/verify-remote.sh`(33건), `scripts/verify-linux.sh`, `swift test` 50개, Go 테스트, iOS 시뮬레이터 대상 `swift build` 모두 통과. 새 앱이 `open`으로 넘긴 `mdr://` 링크를 받는 것도 `verify-remote.sh`에서 확인 |
 | 서명한 앱 묶음 | 닫음 | `scripts/dist.sh` → `output/dist/mdr-0.1.0.zip`(저장소에는 넣지 않음) |
 
 ## 기록에서 지운 것과 바꾼 것
@@ -505,7 +505,6 @@ Rex 팬을 하나 새로 만들어(`rex run --split`) 그 안에서 `mdr fixture
 - **링크를 마우스로 누르기, Tailscale을 실제로 끈 상태** 등 2단계의 "확인하지 못한 것"은 그대로입니다.
 - 스냅숏(PNG)에 개인 정보가 찍히지 않았는지는 스크립트가 보지 못합니다. `output/verify/`와 `output/compare/`의 그림 가운데 일부를 눈으로 봤고(창 제목에 파일 이름만 보임), 전부를 보지는 않았습니다.
 - Intel Mac 실물에서의 실행(Rosetta로만 확인).
-- iOS 시뮬레이터 대상 `swift build`는 이번에 다시 돌리지 않았습니다(MdrKit의 코드는 주석의 예시 값만 바뀌었습니다).
 
 ## 남은 일
 
