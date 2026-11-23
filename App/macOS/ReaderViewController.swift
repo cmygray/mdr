@@ -15,6 +15,16 @@ struct ReadingAnchor: Equatable {
 }
 
 final class ReaderTextView: NSTextView {
+    /// 글이 시작하는 위쪽 여백입니다. `textContainerInset`은 위아래가 같으므로, 아래쪽에만 여유를 두려고
+    /// inset을 키우고 시작 위치는 이 값으로 고정합니다(각주처럼 문서 끝의 줄도 화면 가운데로 올 수 있게).
+    var topPadding: CGFloat?
+
+    override var textContainerOrigin: NSPoint {
+        var origin = super.textContainerOrigin
+        if let topPadding { origin.y = topPadding }
+        return origin
+    }
+
     /// 선택한 부분을 붙여 넣기 좋은 글자로 돌려줍니다. 코드 블록과 표의 내용도 들어갑니다.
     func plainTextForSelection() -> String {
         guard let storage = textContentStorage?.textStorage else { return "" }
@@ -180,12 +190,15 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     private var heldAnchor: ReadingAnchor?
     private var releaseWork: DispatchWorkItem?
     private var laidOutWidth: CGFloat = 0
+    private var laidOutHeight: CGFloat = 0
     private var isAdjustingScroll = false
     private var renderedScheme: ColorScheme?
     /// 직전에 본 스크롤 위치(점프 감지용)
     private var observedScrollY: CGFloat = 0
     /// 문서 안 링크(목차가 아닌 본문의 `#제목`, 각주)로 이동하기 전의 자리들
     private var backStack: [BackEntry] = []
+    /// 지금 밝히고 있는 줄의 띠
+    private weak var lineFlash: NSView?
 
     /// 돌아갈 자리와, 돌아갔을 때 눈길을 줄 글자 범위(누른 링크)
     private struct BackEntry {
@@ -285,6 +298,11 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     override func viewDidLayout() {
         super.viewDidLayout()
         let width = scrollView.contentSize.width
+        // 높이만 바뀌었으면 문서 끝 아래 여유만 다시 맞춥니다(읽던 자리에는 영향이 없습니다).
+        if width > 0, abs(width - laidOutWidth) <= 0.5, abs(scrollView.contentView.bounds.height - laidOutHeight) > 0.5 {
+            updateInsets()
+            return
+        }
         guard width > 0, abs(width - laidOutWidth) > 0.5 else { return }
         scrollLog.info("width \(Double(self.laidOutWidth)) -> \(Double(width))")
         let isFirstLayout = laidOutWidth == 0
@@ -392,10 +410,18 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         let width = scrollView.contentSize.width
         let margin = CGFloat(style.tokens.pageMargin)
         let horizontal = max(margin, ((width - style.measure) / 2).rounded(.down))
-        let inset = NSSize(width: horizontal, height: CGFloat(style.tokens.pagePaddingY))
+        let padding = CGFloat(style.tokens.pagePaddingY)
+        // 문서 끝 아래에 화면 높이의 절반만큼 여유를 둡니다. 마지막 줄(각주 등)도 화면 가운데까지 올릴 수 있습니다.
+        let visible = scrollView.contentView.bounds.height - scrollView.contentInsets.top - scrollView.contentInsets.bottom
+        let overscroll = max(0, (visible / 2).rounded())
+        let inset = NSSize(width: horizontal, height: padding + overscroll / 2)
+        if textView.topPadding != padding {
+            textView.topPadding = padding
+        }
         if textView.textContainerInset != inset {
             textView.textContainerInset = inset
         }
+        laidOutHeight = scrollView.contentView.bounds.height
         // 넓은 표가 쓸 수 있는 폭을 알려 주고, 바뀌었으면 다시 배치하게 합니다.
         let bleed = max(0, width - margin * 2)
         if let environment = rendered?.environment, abs(environment.bleedWidth - bleed) > 0.5 {
@@ -563,18 +589,83 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     /// 문서 안 링크로 이동하기 전 자리로 돌아갑니다(⌘[).
     @objc func goBack(_ sender: Any?) {
         guard let entry = backStack.popLast() else { NSSound.beep(); return }
-        scroll(to: entry.anchor)
-        flash(entry.origin)
+        if let origin = entry.origin {
+            // 눌렀던 링크의 줄을 화면 가운데로 가져옵니다. 떠날 때의 화면을 그대로 되살리면 그 줄이 어디 있는지 다시 찾아야 합니다.
+            center(on: origin.location)
+            flashLine(at: origin.location)
+        } else {
+            scroll(to: entry.anchor)
+        }
     }
 
     // MARK: Jump highlight
 
-    /// 이동한 곳을 찾기(⌘F)와 같은 튀어 오르는 노란 상자로 잠깐 표시합니다. 어디를 봐야 할지 알려 주려는 것입니다.
-    private func flash(_ range: NSRange?) {
-        guard let range, range.length > 0, NSMaxRange(range) <= (textView.textStorage?.length ?? 0) else { return }
-        // 스크롤한 자리의 배치가 끝난 뒤에 띄워야 상자가 제자리에 그려집니다.
+    /// `index`의 글자가 있는 줄을 화면 세로 가운데에 둡니다. 문서 처음이나 끝 가까이라 가운데까지 못 가면 갈 수 있는 데까지 갑니다.
+    private func center(on index: Int) {
+        // 먼저 그 문단을 화면 위쪽에 맞춰, 앞부분을 실제로 배치하고 정확한 위치를 얻습니다.
+        scroll(to: ReadingAnchor(index: index, delta: 0))
+        guard let line = lineRect(at: index) else { return }
+        let clip = scrollView.contentView
+        let insets = scrollView.contentInsets
+        let visible = clip.bounds.height - insets.top - insets.bottom
+        let top = -insets.top
+        let bottom = max(top, textView.frame.height - clip.bounds.height + insets.bottom)
+        let target = min(max(line.midY - insets.top - visible / 2, top), bottom)
+        isAdjustingScroll = true
+        clip.scroll(to: NSPoint(x: 0, y: target))
+        scrollView.reflectScrolledClipView(clip)
+        textView.textLayoutManager?.textViewportLayoutController.layoutViewport()
+        isAdjustingScroll = false
+        if let anchor = currentAnchor() {
+            lastAnchor = anchor
+            onPositionChange?(anchor)
+        }
+        if let after = lineRect(at: index) {
+            let center = clip.bounds.minY + insets.top + visible / 2
+            scrollLog.info("center(on:) index=\(index) line.midY=\(Double(after.midY)) visibleCenter=\(Double(center)) offBy=\(Double(after.midY - center))")
+        }
+    }
+
+    /// `index`의 글자가 놓인 줄의 사각형(본문 view 좌표). 폭은 본문 단 전체입니다.
+    private func lineRect(at index: Int) -> NSRect? {
+        guard let layoutManager = textView.textLayoutManager, let storage = textView.textContentStorage,
+              let container = layoutManager.textContainer,
+              let location = storage.location(storage.documentRange.location, offsetBy: index),
+              let fragment = layoutManager.textLayoutFragment(for: location) else { return nil }
+        let frame = fragment.layoutFragmentFrame
+        let offset = storage.offset(from: fragment.rangeInElement.location, to: location)
+        let lines = fragment.textLineFragments
+        guard let line = lines.first(where: { NSLocationInRange(offset, $0.characterRange) }) ?? lines.first else { return nil }
+        let origin = textView.textContainerOrigin
+        let bounds = line.typographicBounds
+        return NSRect(x: origin.x, y: origin.y + frame.minY + bounds.minY, width: container.size.width, height: bounds.height)
+    }
+
+    /// 줄 전체에 옅은 띠를 깔아 잠깐 밝혔다가 사라지게 합니다.
+    private func flashLine(at index: Int) {
+        // 가운데로 옮긴 배치가 화면에 반영된 뒤에 띄웁니다.
         DispatchQueue.main.async { [weak self] in
-            self?.textView.showFindIndicator(for: range)
+            guard let self, let rect = self.lineRect(at: index) else { return }
+            self.lineFlash?.removeFromSuperview()
+            let band = NSView(frame: rect.insetBy(dx: -10, dy: -3))
+            band.wantsLayer = true
+            band.layer?.cornerRadius = 5
+            band.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.28).cgColor
+            band.alphaValue = 0
+            self.textView.addSubview(band)
+            self.lineFlash = band
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.12
+                band.animator().alphaValue = 1
+            }, completionHandler: {
+                NSAnimationContext.runAnimationGroup({ context in
+                    context.duration = 0.9
+                    context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                    band.animator().alphaValue = 0
+                }, completionHandler: {
+                    band.removeFromSuperview()
+                })
+            })
         }
     }
 
@@ -684,8 +775,10 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
                     backStack.append(BackEntry(anchor: here, origin: linkRange(at: charIndex)))
                 }
                 if backStack.count > 50 { backStack.removeFirst() }
-                scroll(toCharacterIndex: index)
-                flash(targetRange(forAnchor: name, at: index))
+                // 도착한 줄을 화면 가운데에 두고 그 줄을 잠깐 밝혀, 시선이 따라갈 곳을 정해 줍니다.
+                let target = targetRange(forAnchor: name, at: index)?.location ?? index
+                center(on: target)
+                flashLine(at: target)
             }
         case .openExternally(let target):
             NSWorkspace.shared.open(target)

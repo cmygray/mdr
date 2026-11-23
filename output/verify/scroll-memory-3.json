@@ -42,7 +42,7 @@
     "copy:"
   ],
   "documentCount" : 1,
-  "documentHeight" : 1283,
+  "documentHeight" : 1602,
   "feedState" : "live",
   "fontScale" : 1,
   "footnoteCount" : 0,
@@ -84,21 +84,21 @@
 
   ],
   "launchMs" : {
-    "appInit" : 48.200000000000003,
-    "didFinishLaunching" : 87,
-    "displayed" : 163.30000000000001,
-    "fontsRegistered" : 52.299999999999997,
-    "main" : 8,
-    "parsed" : 86.900000000000006,
-    "read" : 85.799999999999997,
-    "rendered" : 158.69999999999999,
-    "renderStart" : 153.19999999999999,
-    "tokensLoaded" : 53.200000000000003,
-    "willFinishLaunching" : 60.5,
-    "windowInitEnd" : 148.80000000000001,
-    "windowInitStart" : 110.59999999999999,
-    "windowReady" : 153.09999999999999,
-    "windowShown" : 184.09999999999999
+    "appInit" : 34.700000000000003,
+    "didFinishLaunching" : 177.90000000000001,
+    "displayed" : 150.09999999999999,
+    "fontsRegistered" : 38.299999999999997,
+    "main" : 7,
+    "parsed" : 63.200000000000003,
+    "read" : 62.100000000000001,
+    "rendered" : 145.30000000000001,
+    "renderStart" : 139.69999999999999,
+    "tokensLoaded" : 39,
+    "willFinishLaunching" : 41.899999999999999,
+    "windowInitEnd" : 134,
+    "windowInitStart" : 85,
+    "windowReady" : 139.69999999999999,
+    "windowShown" : 174.90000000000001
   },
   "measure" : 544,
   "measuredBodyLineHeights" : [
@@ -129,7 +129,7 @@
   },
   "textContainerInset" : [
     134,
-    44
+    203.5
   ],
   "textLength" : 1609,
   "tokenError" : "",
