@@ -538,3 +538,14 @@ Rex 팬을 하나 새로 만들어(`rex run --split`) 그 안에서 `mdr fixture
 - QuickMD를 띄워 찍고 끝냈습니다(세 문서, 두 번). Docker 컨테이너(`alpine:3.20`)를 띄웠다 지웠습니다.
 - 서명한 앱을 확인하다가 문서 없이 한 번 띄워서, 잠긴 화면에 열기 창이 2분쯤 떠 있었습니다. 띄울 때의 경로로 그 프로세스를 찾아 끝냈습니다. 새 식별자의 UserDefaults(`kim.two.mdr`)에 창 크기 같은 값이 생겼습니다.
 - 다른 기기, GitHub, Tailscale 설정은 건드리지 않았습니다.
+
+## 사용 피드백 반영 (2026-11-23, 메인 세션)
+
+- **다른 Mac에서 원격 문서가 열리지 않던 문제:** App Transport Security가 tailnet IP로 가는 http를 막았습니다. `project.yml`에 `NSAllowsArbitraryLoads`를 넣었습니다(위 "확인하지 못한 것" 참고).
+- **각주:** 참조에 마우스를 올리면 정의 글을 툴팁으로 보여 줍니다(대기시간 350ms, `NSInitialToolTipDelay`). 정의 끝의 ↩로 첫 참조 자리로 돌아가고, 보기 › 돌아가기(⌘[)로 이동 직전 자리로 돌아갑니다.
+- **이동 표시:** 문서 안 링크로 이동하거나 돌아갈 때 목표 줄을 화면 세로 가운데에 두고, 그 줄 전체에 강조색 띠를 잠깐 깝니다. 문서 끝의 줄(각주)도 가운데로 올 수 있게 문서 끝 아래에 화면 높이 절반의 여유를 둡니다(`ReaderTextView.topPadding`으로 위쪽 여백은 그대로). 목차 이동은 제목을 맨 위에 둡니다.
+
+남은 일
+
+- **스크롤이 저절로 맨 위로 튀는 문제(원인·재현 조건 미상).** 진단 로그를 넣었습니다. 다시 일어나면 그 Mac에서 `log show --last 30m --info --predicate 'subsystem == "kim.two.mdr" AND category == "scroll"'`를 읽습니다. 맨 위로 점프한 순간은 `JUMP-TO-TOP` fault와 호출 경로로 남습니다. 감지기가 실제 점프에서 기록하는지는 아직 확인하지 못했습니다.
+- `scripts/verify-remote.sh`는 서버와 같은 Mac에서 Debug 앱으로만 확인합니다. 다른 Mac에서 Release 앱으로 확인하는 단계가 없어 ATS 문제를 놓쳤습니다.
