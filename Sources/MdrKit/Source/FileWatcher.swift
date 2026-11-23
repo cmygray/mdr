@@ -4,14 +4,15 @@ import Foundation
 ///
 /// 편집기는 대개 임시 파일에 쓴 뒤 이름을 바꿔 저장하므로, 지워지거나 이름이 바뀌면
 /// 같은 경로를 다시 열어 감시를 이어갑니다.
-final class FileWatcher {
+public final class FileWatcher {
     private let url: URL
     private let onChange: () -> Void
     private var source: DispatchSourceFileSystemObject?
     private var pending: DispatchWorkItem?
     private var retry: DispatchWorkItem?
 
-    init(url: URL, onChange: @escaping () -> Void) {
+    /// `onChange`는 메인 스레드에서 부릅니다.
+    public init(url: URL, onChange: @escaping () -> Void) {
         self.url = url
         self.onChange = onChange
         open()

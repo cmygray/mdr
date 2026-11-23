@@ -26,6 +26,10 @@ targets:
         NSPrincipalClass: NSApplication
         NSSupportsAutomaticTermination: false
         MDRDevTokensPath: $(MDR_DEV_TOKENS_PATH)
+        CFBundleURLTypes:
+          - CFBundleURLName: dev.mdr.app.remote-document
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes: [mdr]
         CFBundleDocumentTypes:
           - CFBundleTypeName: Markdown Document
             CFBundleTypeRole: Viewer

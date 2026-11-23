@@ -10,11 +10,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         StyleStore.shared.start()
         LaunchClock.mark("tokensLoaded")
         NSApp.mainMenu = makeMenu()
+        // `mdr://` 링크는 Apple Event로 들어옵니다. 파일 열기는 지금처럼 NSDocumentController가 맡습니다.
+        NSAppleEventManager.shared().setEventHandler(
+            self, andSelector: #selector(handleGetURL(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
         LaunchClock.mark("willFinishLaunching")
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         LaunchClock.mark("didFinishLaunching")
+        if let link = Automation.shared.remoteLink {
+            DocumentOpener.open(link: link)
+        }
+    }
+
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        guard let text = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let link = URL(string: text) else { return }
+        DocumentOpener.open(link: link)
     }
 
     /// 문서 없이 켜거나, 창이 없을 때 Dock 아이콘을 누르면 빈 문서 대신 열기 창을 띄웁니다.

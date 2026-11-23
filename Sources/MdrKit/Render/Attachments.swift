@@ -363,22 +363,32 @@ public final class TableLayout {
 
 // MARK: - Image
 
-/// 로컬 이미지 파일입니다. 크기는 파일 머리말에서만 읽고, 픽셀은 처음 그릴 때 불러옵니다.
+/// 본문에 넣는 이미지입니다. TextKit이 직접 그립니다(글 안에 섞인 이미지에도 같은 방식을 씁니다).
+///
+/// 로컬 파일은 크기를 파일 머리말에서만 읽고, 픽셀은 처음 그릴 때 불러옵니다.
+/// 원격 이미지는 받기 전에 자리만 잡아 두었다가(`isPending`), 받으면 `fulfill(with:)`로 채웁니다.
 public final class ImageAttachment: NSTextAttachment {
-    public let url: URL
-    public let pixelSize: CGSize
+    /// 로컬 이미지 파일의 위치입니다. 원격 이미지는 nil입니다.
+    public let url: URL?
+    /// 복사할 때 이미지 대신 넣는 이름
+    public let name: String
+    public private(set) var pixelSize: CGSize
+    /// 아직 받지 못한 원격 이미지입니다. 이때 `pixelSize`는 자리만 잡아 두는 크기입니다.
+    public private(set) var isPending = false
+    /// 이미지가 채워지거나 바뀌면 부릅니다. 본문 view가 그 줄을 다시 배치합니다.
+    public var onChange: ((ImageAttachment) -> Void)?
 
-    /// 파일이 없거나 이미지가 아니면 nil입니다.
+    /// 아직 받지 못한 이미지의 자리 크기
+    public static let placeholderSize = CGSize(width: 320, height: 180)
+
+    /// 로컬 파일. 파일이 없거나 이미지가 아니면 nil입니다.
     public init?(url: URL) {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
-              let height = properties[kCGImagePropertyPixelHeight] as? CGFloat,
-              width > 0, height > 0 else {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil), let size = Self.pixelSize(of: source) else {
             return nil
         }
         self.url = url
-        pixelSize = CGSize(width: width, height: height)
+        name = url.lastPathComponent
+        pixelSize = size
         super.init(data: nil, ofType: nil)
         // `image`를 지정해 두어야 TextKit이 직접 그립니다(메서드 재정의만으로는 그리지 않습니다).
         // 참조만 걸어 두므로 파일은 처음 그릴 때 읽습니다.
@@ -389,9 +399,68 @@ public final class ImageAttachment: NSTextAttachment {
         #endif
     }
 
+    /// 아직 받지 못한 원격 이미지. `tint` 색의 빈 상자로 자리를 잡아 둡니다.
+    public init(pendingNamed name: String, tint: PlatformColor) {
+        url = nil
+        self.name = name
+        pixelSize = Self.placeholderSize
+        isPending = true
+        super.init(data: nil, ofType: nil)
+        image = Self.solidImage(tint)
+    }
+
+    /// 이미 받은 이미지 데이터. 이미지가 아니면 nil입니다.
+    public init?(data: Data, name: String) {
+        guard let size = Self.pixelSize(of: data), let decoded = PlatformImage(data: data) else { return nil }
+        url = nil
+        self.name = name
+        pixelSize = size
+        super.init(data: nil, ofType: nil)
+        image = decoded
+    }
+
     @available(*, unavailable)
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
+    }
+
+    /// 받은 데이터로 이미지를 채웁니다. 이미지가 아니면 false를 돌려주고 그대로 둡니다. 메인 스레드에서 부릅니다.
+    @discardableResult
+    public func fulfill(with data: Data) -> Bool {
+        guard let size = Self.pixelSize(of: data), let decoded = PlatformImage(data: data) else { return false }
+        pixelSize = size
+        isPending = false
+        image = decoded
+        onChange?(self)
+        return true
+    }
+
+    /// 이미지 데이터의 머리말에서 픽셀 크기만 읽습니다.
+    public static func pixelSize(of data: Data) -> CGSize? {
+        CGImageSourceCreateWithData(data as CFData, nil).flatMap(pixelSize(of:))
+    }
+
+    private static func pixelSize(of source: CGImageSource) -> CGSize? {
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
+              let height = properties[kCGImagePropertyPixelHeight] as? CGFloat,
+              width > 0, height > 0 else { return nil }
+        return CGSize(width: width, height: height)
+    }
+
+    /// 한 가지 색으로 채운 1×1 이미지입니다. 첨부 크기에 맞춰 늘려 그려집니다.
+    private static func solidImage(_ color: PlatformColor) -> PlatformImage? {
+        guard let context = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.setFillColor(color.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+        guard let pixel = context.makeImage() else { return nil }
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        return NSImage(cgImage: pixel, size: NSSize(width: 1, height: 1))
+        #else
+        return UIImage(cgImage: pixel)
+        #endif
     }
 
     /// 픽셀 크기를 pt로 보고, 쓸 수 있는 폭을 넘으면 비율을 지켜 줄입니다.

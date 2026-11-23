@@ -51,12 +51,91 @@ private final class ReaderContainerView: NSView {
     }
 }
 
+/// 본문 자리에 보여 주는 안내입니다.
+enum ReaderStatus: Equatable {
+    /// 원격 문서를 가져오는 중
+    case loading
+    /// 문서를 가져오지 못함. 본문 대신 이유를 보여 줍니다.
+    case failed(title: String, detail: String, retryable: Bool)
+}
+
+/// 문서를 아직 받지 못했을 때 본문 자리에 보이는 안내입니다.
+private final class StatusView: NSView {
+    let icon = NSImageView()
+    let title = NSTextField(labelWithString: "")
+    let detail = NSTextField(wrappingLabelWithString: "")
+    let retry = NSButton(title: "다시 시도", target: nil, action: nil)
+    private let spinner = NSProgressIndicator()
+
+    init() {
+        super.init(frame: .zero)
+        icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 34, weight: .regular)
+        icon.contentTintColor = .secondaryLabelColor
+        title.font = .systemFont(ofSize: 17, weight: .semibold)
+        title.alignment = .center
+        detail.font = .systemFont(ofSize: 13)
+        detail.textColor = .secondaryLabelColor
+        detail.alignment = .center
+        detail.isSelectable = true
+        retry.bezelStyle = .rounded
+        spinner.style = .spinning
+        spinner.controlSize = .small
+
+        let stack = NSStackView(views: [spinner, icon, title, detail, retry])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 10
+        stack.setCustomSpacing(16, after: detail)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -20),
+            stack.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
+            stack.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -48),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    func show(_ status: ReaderStatus) {
+        switch status {
+        case .loading:
+            spinner.isHidden = false
+            spinner.startAnimation(nil)
+            icon.isHidden = true
+            title.stringValue = "문서를 가져오는 중입니다"
+            detail.isHidden = true
+            retry.isHidden = true
+        case .failed(let titleText, let detailText, let retryable):
+            spinner.stopAnimation(nil)
+            spinner.isHidden = true
+            icon.isHidden = false
+            icon.image = NSImage(systemSymbolName: "exclamationmark.icloud", accessibilityDescription: nil)
+            title.stringValue = titleText
+            detail.stringValue = detailText
+            detail.isHidden = false
+            retry.isHidden = false
+            retry.title = retryable ? "지금 다시 시도" : "다시 시도"
+        }
+    }
+}
+
 /// 본문을 보여 주는 얇은 view입니다. 조판은 MdrKit이 하고, 여기서는 배치와 스크롤만 다룹니다.
 final class ReaderViewController: NSViewController, NSTextViewDelegate {
     let scrollView = NSScrollView()
     let textView = ReaderTextView(usingTextLayoutManager: true)
     private let layoutDelegate = DecorationLayoutDelegate()
     private let errorLabel = NSTextField(labelWithString: "")
+    /// 문서는 보이지만 변경을 받지 못할 때 창 아래에 띄우는 한 줄
+    private let noticeLabel = NSTextField(labelWithString: "")
+    private let statusView = StatusView()
+    private(set) var status: ReaderStatus?
+    private(set) var notice: String?
+    var onRetry: (() -> Void)?
 
     private(set) var rendered: RenderedDocument?
     private(set) var style: ResolvedStyle?
@@ -122,16 +201,43 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         errorLabel.lineBreakMode = .byTruncatingTail
         errorLabel.isHidden = true
 
+        noticeLabel.font = .systemFont(ofSize: 12)
+        noticeLabel.textColor = .white
+        noticeLabel.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.95)
+        noticeLabel.drawsBackground = true
+        noticeLabel.lineBreakMode = .byTruncatingTail
+        noticeLabel.isHidden = true
+
+        // 창 아래의 띠들입니다. 숨긴 것은 자리를 차지하지 않습니다.
+        let bands = NSStackView(views: [noticeLabel, errorLabel])
+        bands.orientation = .vertical
+        bands.alignment = .width
+        bands.spacing = 0
+        bands.translatesAutoresizingMaskIntoConstraints = false
+        // 띠는 글자 길이와 상관없이 창 폭을 다 채웁니다.
+        noticeLabel.widthAnchor.constraint(equalTo: bands.widthAnchor).isActive = true
+        errorLabel.widthAnchor.constraint(equalTo: bands.widthAnchor).isActive = true
+
+        statusView.translatesAutoresizingMaskIntoConstraints = false
+        statusView.isHidden = true
+        statusView.retry.target = self
+        statusView.retry.action = #selector(retryTapped)
+
         container.addSubview(scrollView)
-        container.addSubview(errorLabel)
+        container.addSubview(statusView)
+        container.addSubview(bands)
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             scrollView.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            errorLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            errorLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            errorLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            statusView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            statusView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            statusView.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor),
+            statusView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            bands.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            bands.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            bands.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
         view = container
 
@@ -183,8 +289,15 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
 
     /// 문서 내용이나 스타일이 바뀌었을 때 읽던 자리를 지키며 다시 그립니다.
     func rerender() {
-        let anchor = currentAnchor()
+        // 가려던 자리(`lastAnchor`)를 기준으로 삼습니다. 원격 이미지가 도착하기 전에는 문서가 실제보다 짧아
+        // 지금 보이는 곳이 가려던 곳보다 위에 잘려 있을 수 있습니다.
+        var anchor = lastAnchor ?? currentAnchor()
+        let before = rendered?.text.string
         render()
+        // 읽던 자리는 글자 위치로 기억합니다. 그보다 위쪽 글이 바뀌었으면 그만큼 옮겨 같은 문단을 가리키게 합니다.
+        if let before, let after = rendered?.text.string, let index = anchor?.index {
+            anchor?.index = TextAnchorMapping.remap(index, from: before, to: after)
+        }
         if let anchor {
             scroll(to: anchor)
         }
@@ -199,9 +312,18 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
 
         layoutDelegate.keepsWordsWithHangulTogether = style.tokens.body.lineBreak == "hangulWord"
         LaunchClock.mark("renderStart")
-        let rendered = DocumentRenderer(style: style, baseURL: document.fileURL).render(content.parsed)
+        if let store = document.feed?.images as? RemoteImageStore {
+            store.placeholderTint = style.palette.codeBackground
+        }
+        let rendered = DocumentRenderer(style: style, source: document.source, images: document.feed?.images).render(content.parsed)
         self.rendered = rendered
         LaunchClock.mark("rendered")
+        // 원격 이미지는 문서를 그린 뒤에 도착합니다. 도착하면 그 줄만 다시 배치합니다.
+        rendered.text.enumerateAttribute(.attachment, in: NSRange(location: 0, length: rendered.text.length)) { value, _, _ in
+            (value as? ImageAttachment)?.onChange = { [weak self] attachment in self?.imageDidChange(attachment) }
+        }
+        changedImages.removeAll()
+        showStatus(nil)
 
         textView.backgroundColor = style.palette.background
         scrollView.backgroundColor = style.palette.background
@@ -241,6 +363,69 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     @objc private func styleDidChange() {
         guard isViewLoaded, document != nil else { return }
         rerender()
+    }
+
+    // MARK: Status
+
+    /// 본문 대신 보여 줄 안내를 정합니다. nil이면 본문을 보여 줍니다.
+    func showStatus(_ status: ReaderStatus?) {
+        _ = view
+        self.status = status
+        statusView.isHidden = status == nil
+        scrollView.isHidden = status != nil
+        if let status {
+            statusView.show(status)
+            // 문서를 받기 전에도 창이 문서와 같은 바탕색이 되게 합니다.
+            let palette = StyleStore.shared.resolvedStyle(script: .hangul, appearance: view.effectiveAppearance).palette
+            view.layer?.backgroundColor = palette.background.cgColor
+        }
+    }
+
+    /// 창 아래에 한 줄 안내를 띄웁니다. nil이면 감춥니다.
+    func showNotice(_ text: String?) {
+        _ = view
+        notice = text
+        noticeLabel.stringValue = text.map { "  \($0)" } ?? ""
+        noticeLabel.isHidden = text == nil
+    }
+
+    @objc private func retryTapped() {
+        onRetry?()
+    }
+
+    // MARK: Images
+
+    private var changedImages: [ImageAttachment] = []
+
+    /// 이미지가 채워졌습니다. 같은 때에 도착한 것들을 모아 한 번에 다시 배치합니다.
+    private func imageDidChange(_ attachment: ImageAttachment) {
+        changedImages.append(attachment)
+        guard changedImages.count == 1 else { return }
+        DispatchQueue.main.async { [weak self] in self?.relayoutChangedImages() }
+    }
+
+    private func relayoutChangedImages() {
+        let changed = Set(changedImages.map(ObjectIdentifier.init))
+        changedImages.removeAll()
+        guard !changed.isEmpty, let contentStorage = textView.textContentStorage, let storage = contentStorage.textStorage else { return }
+        // 화면 위쪽의 이미지가 커지면 읽던 줄이 밀려납니다. 읽던 자리를 붙잡았다가 되돌립니다.
+        // 기준은 가려던 자리입니다. 이미지가 빈 상자였던 동안에는 문서가 짧아, 복원한 자리가 맨 아래에 잘려 있을 수 있습니다.
+        let anchor = heldAnchor ?? lastAnchor ?? currentAnchor()
+        var ranges: [NSRange] = []
+        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            if let image = value as? ImageAttachment, changed.contains(ObjectIdentifier(image)) { ranges.append(range) }
+        }
+        guard !ranges.isEmpty else { return }
+        // 다시 배치하는 동안 움직인 스크롤 위치를 읽던 자리로 기록하지 않게 합니다.
+        isAdjustingScroll = true
+        contentStorage.performEditingTransaction {
+            for range in ranges {
+                storage.edited(.editedAttributes, range: range, changeInLength: 0)
+            }
+        }
+        isAdjustingScroll = false
+        if let anchor { scroll(to: anchor) }
+        textView.needsDisplay = true
     }
 
     private func appearanceDidChange() {
@@ -285,7 +470,10 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         if anchor.index <= Self.exactLayoutLimit {
             layoutManager.ensureLayout(for: NSTextRange(location: storage.documentRange.location, end: next)!)
         }
-        for _ in 0..<4 {
+        // 위쪽 문단의 높이가 막 바뀐 직후에는(늦게 도착한 이미지 등) 목표 문단의 위치가 아직 옛 값일 수 있습니다.
+        // 그래서 화면 배치를 적어도 한 번 확정한 뒤에 다시 재서, 위치가 더 바뀌지 않을 때 멈춥니다.
+        var settled = false
+        for _ in 0..<5 {
             layoutManager.ensureLayout(for: NSTextRange(location: location, end: next)!)
             guard let fragment = layoutManager.textLayoutFragment(for: location) else { break }
             let frame = fragment.layoutFragmentFrame
@@ -304,10 +492,14 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
             // 문서 맨 위(첫 문단보다 위쪽 여백에 있던 경우)는 여백 크기가 바뀌어도 항상 맨 위입니다.
             let isTop = anchor.index == 0 && anchor.delta <= 0 && !alignToFirstLine
             let target = isTop ? top : min(max(frame.minY + delta + textView.textContainerOrigin.y + top, top), bottom)
-            if abs(clip.bounds.minY - target) < 0.5 { break }
-            clip.scroll(to: NSPoint(x: 0, y: target))
-            scrollView.reflectScrolledClipView(clip)
+            if abs(clip.bounds.minY - target) >= 0.5 {
+                clip.scroll(to: NSPoint(x: 0, y: target))
+                scrollView.reflectScrolledClipView(clip)
+            } else if settled {
+                break
+            }
             layoutManager.textViewportLayoutController.layoutViewport()
+            settled = true
         }
         // 요청받은 자리를 기억합니다. 아직 창 크기가 정해지기 전이었다면 배치가 끝난 뒤 다시 맞춥니다.
         lastAnchor = alignToFirstLine ? currentAnchor() : anchor
@@ -327,6 +519,19 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
 
     // MARK: Links
 
+    /// 글자에 `text`가 든 첫 링크를 누른 것처럼 처리합니다(자동화 검증용). 그런 링크가 없으면 false입니다.
+    func clickFirstLink(containing text: String) -> Bool {
+        guard let storage = textView.textContentStorage?.textStorage else { return false }
+        var found: (Any, Int)?
+        storage.enumerateAttribute(.link, in: NSRange(location: 0, length: storage.length)) { value, range, stop in
+            guard let value, (storage.string as NSString).substring(with: range).contains(text) else { return }
+            found = (value, range.location)
+            stop.pointee = true
+        }
+        guard let (link, index) = found else { return false }
+        return textView(textView, clickedOnLink: link, at: index)
+    }
+
     func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
         let url: URL?
         if let value = link as? URL {
@@ -336,29 +541,27 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         } else {
             url = nil
         }
-        guard let url else { return true }
-
-        if url.scheme == DocumentRenderer.anchorScheme {
-            if let index = rendered?.anchors[url.path] {
-                scroll(toCharacterIndex: index)
-            }
+        guard let url else {
+            NSSound.beep()
             return true
         }
-        // 문서 안의 링크는 믿을 수 없는 입력입니다(2단계부터는 원격 문서도 엽니다).
-        // 웹·메일 링크만 바깥 앱으로 넘기고, 로컬 파일은 마크다운이면 이 앱으로 열고
-        // 그 밖에는 실행하지 않고 Finder에서 보여 주기만 합니다. 나머지 scheme은 열지 않습니다.
-        switch url.scheme?.lowercased() {
-        case "http", "https", "mailto":
-            NSWorkspace.shared.open(url)
-        case "file":
-            if ["md", "markdown", "mdown", "mkd"].contains(url.pathExtension.lowercased()) {
-                NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
-            } else if FileManager.default.fileExists(atPath: url.path) {
-                NSWorkspace.shared.activateFileViewerSelecting([url])
+        // 문서 안의 링크는 믿을 수 없는 입력입니다. 무엇을 열지는 `LinkPolicy`(MdrKit)가 문서의 출처를 보고 정합니다.
+        switch LinkPolicy.action(for: url, in: document?.source) {
+        case .anchor(let name):
+            if let index = rendered?.anchors[name] {
+                scroll(toCharacterIndex: index)
+            }
+        case .openExternally(let target):
+            NSWorkspace.shared.open(target)
+        case .openDocument(let source):
+            DocumentOpener.open(source)
+        case .reveal(let file):
+            if FileManager.default.fileExists(atPath: file.path) {
+                NSWorkspace.shared.activateFileViewerSelecting([file])
             } else {
                 NSSound.beep()
             }
-        default:
+        case .deny:
             NSSound.beep()
         }
         return true

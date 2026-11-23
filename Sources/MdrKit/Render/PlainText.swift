@@ -23,7 +23,7 @@ public extension NSAttributedString {
                     .map { row in row.map { $0.string.replacingOccurrences(of: "\n", with: " ") }.joined(separator: "\t") }
                     .joined(separator: "\n")
             case let image as ImageAttachment:
-                out += image.url.lastPathComponent
+                out += image.name
             default:
                 // 문단 안의 강제 줄바꿈(U+2028)은 보통 줄바꿈으로, 남은 첨부 문자는 뺍니다.
                 out += source.substring(with: subrange)

@@ -43,6 +43,9 @@ enum LaunchClock {
 ///         [-scrollTo "제목 일부"] [-scrollFraction 0.5] [-sidebar hide] [-fontScale 1.25]
 ///         [-codeScroll 200] [-tableScroll 200] [-outlineRow 12] [-perform "zoomIn:,widenMeasure:"] [-persist YES]
 ///         [-metrics out.json] [-wait 0.5] [-exit YES]
+///
+/// 원격 문서는 파일 대신 `-url "mdr://..."`로 엽니다. `-assumeTailscale off`는 Tailscale이 꺼진 것처럼 동작하게 하고,
+/// `-followLink "글자"`는 그 글자가 든 첫 링크를 누른 뒤 새로 열린 문서를 찍습니다.
 final class Automation {
     static let shared = Automation()
 
@@ -66,6 +69,17 @@ final class Automation {
     private(set) var outlineRow: Int?
     /// 메뉴 항목의 동작 이름들입니다. 메뉴를 누른 것과 같은 경로로 차례로 실행합니다(메뉴 연결 검증용).
     private(set) var menuActions: [String] = []
+    /// 시작할 때 열 `mdr://` 링크
+    private(set) var remoteLink: URL?
+    /// Tailscale이 꺼진 것처럼 동작합니다(안내 화면 검증용).
+    private(set) var assumesTailscaleOff = false
+    /// 이 글자가 든 첫 링크를 누릅니다(문서 안 링크 검증용).
+    private(set) var followLink: String?
+    private var didFollowLink = false
+    /// 링크를 눌러 새 문서가 열렸는지
+    private var followLinkOpened = false
+    private var didFinish = false
+    private var rejectedLinkReason: String?
 
     var isActive: Bool {
         snapshotURL != nil || metricsURL != nil || exitWhenDone
@@ -100,13 +114,59 @@ final class Automation {
             case "-tableScroll": tableScroll = Double(value).map { CGFloat($0) }
             case "-outlineRow": outlineRow = Int(value)
             case "-perform": menuActions = value.split(separator: ",").map(String.init)
+            case "-url": remoteLink = URL(string: value)
+            case "-assumeTailscale": assumesTailscaleOff = value == "off"
+            case "-followLink": followLink = value
             default: break
             }
         }
     }
 
+    /// 받을 수 없는 링크였습니다. 창이 없으므로 이유만 기록하고 끝냅니다.
+    func linkWasRejected(_ reason: String) {
+        guard isActive else { return }
+        rejectedLinkReason = reason
+        if let metricsURL {
+            let metrics: [String: Any] = ["linkRejected": reason, "documentCount": NSDocumentController.shared.documents.count]
+            try? JSONSerialization.data(withJSONObject: metrics, options: [.prettyPrinted, .sortedKeys]).write(to: metricsURL)
+        }
+        if exitWhenDone { exit(0) }
+    }
+
+    /// 문서를 가져오지 못해 안내 화면이 떴습니다. 그 화면을 찍고 끝냅니다.
+    func documentDidFail(_ controller: ReaderWindowController) {
+        guard isActive, !didFinish else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [self] in
+            // 기다리는 사이에 문서가 도착했다면 그쪽이 마무리합니다.
+            guard controller.readerController.status != nil else { return }
+            finish(controller)
+        }
+    }
+
     func documentDidDisplay(_ controller: ReaderWindowController) {
         guard isActive else { return }
+        let reader = controller.readerController
+        if let followLink, !didFollowLink {
+            // 링크를 누릅니다. 새 문서가 열리면 그 문서가 표시될 때 이어서 진행하고,
+            // 열리지 않으면(막힌 링크) 잠시 뒤에 이 문서로 진행합니다.
+            didFollowLink = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
+                let before = NSDocumentController.shared.documents.count
+                if !reader.clickFirstLink(containing: followLink) {
+                    NSLog("mdr: \"%@\"가 든 링크가 없습니다", followLink)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+                    guard NSDocumentController.shared.documents.count == before else { return }
+                    proceed(controller)
+                }
+            }
+            return
+        }
+        if followLink != nil { followLinkOpened = true }
+        proceed(controller)
+    }
+
+    private func proceed(_ controller: ReaderWindowController) {
         let reader = controller.readerController
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
             for name in menuActions {
@@ -129,6 +189,8 @@ final class Automation {
     }
 
     private func finish(_ controller: ReaderWindowController) {
+        guard !didFinish else { return }
+        didFinish = true
         var codeBlock: [String: Any] = [:]
         if let codeScroll, let view: CodeBlockView = Self.firstVisible(in: controller.readerController.textView) {
             view.scrollHorizontally(to: codeScroll)
@@ -152,6 +214,8 @@ final class Automation {
             metrics["fontScale"] = StyleStore.shared.settings.fontScale
             metrics["measureScale"] = StyleStore.shared.settings.measureScale
             metrics["sidebarCollapsed"] = controller.isSidebarCollapsed
+            metrics.merge(Self.sourceMetrics(controller)) { _, new in new }
+            if followLink != nil { metrics["followLinkOpened"] = followLinkOpened }
             if let outlineRow { metrics["outlineRowTitle"] = controller.outlineController.title(atRow: outlineRow) ?? "" }
             if !codeBlock.isEmpty { metrics["codeBlock"] = codeBlock }
             if !tableBlock.isEmpty { metrics["tableBlock"] = tableBlock }
@@ -164,6 +228,51 @@ final class Automation {
             UserDefaults.standard.synchronize()
             exit(0)
         }
+    }
+
+    /// 문서의 출처와 가져오기 상태입니다(원격 문서 검증용).
+    private static func sourceMetrics(_ controller: ReaderWindowController) -> [String: Any] {
+        guard let document = controller.document as? Document else { return [:] }
+        let reader = controller.readerController
+        var metrics: [String: Any] = [
+            "windowTitle": controller.window?.title ?? "",
+            "windowSubtitle": controller.window?.subtitle ?? "",
+            "positionKey": document.positionKey ?? "",
+            "documentCount": NSDocumentController.shared.documents.count,
+            "notice": reader.notice ?? "",
+        ]
+        switch document.source {
+        case .file(let url): metrics["source"] = url.path
+        case .remote(let location): metrics["source"] = location.url.absoluteString
+        case nil: metrics["source"] = ""
+        }
+        switch document.feed?.state {
+        case .loading: metrics["feedState"] = "loading"
+        case .live: metrics["feedState"] = "live"
+        case .failed: metrics["feedState"] = "failed"
+        case .stale: metrics["feedState"] = "stale"
+        case nil: metrics["feedState"] = ""
+        }
+        if case .failed(let title, let detail, let retryable) = reader.status {
+            metrics["statusTitle"] = title
+            metrics["statusDetail"] = detail
+            metrics["statusRetryable"] = retryable
+        }
+        if let store = document.feed?.images as? RemoteImageStore {
+            metrics["remoteImages"] = ["loaded": store.loadedCount, "failed": store.failedCount, "pending": store.pendingCount]
+        }
+        var pending = 0
+        var widths: [Double] = []
+        if let text = reader.rendered?.text {
+            text.enumerateAttribute(.attachment, in: NSRange(location: 0, length: text.length)) { value, _, _ in
+                guard let image = value as? ImageAttachment else { return }
+                if image.isPending { pending += 1 }
+                widths.append(Double(image.pixelSize.width))
+            }
+        }
+        metrics["pendingImageAttachments"] = pending
+        metrics["imagePixelWidths"] = widths
+        return metrics
     }
 
     /// 주 메뉴에서 그 동작을 가진 항목을 찾아, 사용자가 고른 것처럼 실행합니다.

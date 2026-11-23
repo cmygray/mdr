@@ -142,7 +142,44 @@ var imageExtensions = map[string]string{
 	".tif": "image/tiff", ".tiff": "image/tiff", ".bmp": "image/bmp",
 }
 
+// recorder는 응답 상태를 기억해 두었다가 요청 기록에 씁니다.
+type recorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *recorder) WriteHeader(status int) {
+	if r.status == 0 {
+		r.status = status
+	}
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *recorder) Write(data []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	return r.ResponseWriter.Write(data)
+}
+
+// Unwrap은 http.ResponseController가 원래 writer의 Flush와 쓰기 기한 설정을 찾게 해 줍니다.
+func (r *recorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
+
+// ServeHTTP는 요청마다 한 줄을 기록합니다. token은 기록하지 않습니다.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	record := &recorder{ResponseWriter: w}
+	_, kind, rel, err := parseTarget(r.URL.EscapedPath())
+	if err != nil {
+		kind, rel = "-", "-"
+	}
+	if kind == "events" {
+		s.opts.Logf("요청 %s %s %q 시작 (%s)", r.Method, kind, rel, r.RemoteAddr)
+	}
+	s.serve(record, r)
+	s.opts.Logf("요청 %s %s %q → %d (%s)", r.Method, kind, rel, record.status, r.RemoteAddr)
+}
+
+func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-cache")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {

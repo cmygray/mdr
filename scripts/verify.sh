@@ -219,7 +219,8 @@ check("토큰 즉시 반영", before["bodySize"] == 16 and after["bodySize"] == 
       f'실행 중 다시 읽은 횟수 {after["tokenReloads"]}, 본문 크기 {before["bodySize"]}pt → {after["bodySize"]}pt, 바뀐 배경 픽셀 {after_pixel} (앱을 다시 시작하지 않음)')
 
 error = load("hot-reload-error.json")
-band = pixel("hot-reload-error.png", 0.6, 0.992)
+# 띠의 오른쪽 끝을 봅니다. 가운데는 오류 메시지의 글자가 걸릴 수 있습니다.
+band = pixel("hot-reload-error.png", 0.97, 0.992)
 check("토큰 오류 처리", error["tokenError"] != "" and error["bodySize"] == 20 and len(band) == 3 and band[0] > 0.9 and band[1] < 0.5,
       f'오류 메시지 "{error["tokenError"]}", 본문 크기는 직전 값 {error["bodySize"]}pt 유지, 창 아래 띠 픽셀 {band}')
 

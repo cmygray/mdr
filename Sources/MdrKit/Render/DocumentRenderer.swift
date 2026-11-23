@@ -32,7 +32,8 @@ public final class DocumentRenderer {
     public static let anchorScheme = "mdr-anchor"
 
     private let style: ResolvedStyle
-    private let baseURL: URL?
+    private let source: DocumentSource?
+    private let images: ImageProviding?
     private let output = NSMutableAttributedString()
     private var outline: [OutlineItem] = []
     private var anchors: [String: Int] = [:]
@@ -56,9 +57,18 @@ public final class DocumentRenderer {
     private lazy var checkboxFont = FontFactory.make(
         .init(family: "Apple Symbols", fallbacks: []), size: (style.em * 1.2).rounded(), weight: 400)
 
-    public init(style: ResolvedStyle, baseURL: URL?) {
+    /// - Parameters:
+    ///   - source: 문서의 출처. 상대 경로 링크를 푸는 기준입니다.
+    ///   - images: 이미지 참조를 첨부로 바꾸는 쪽. nil이면 이미지를 대체 글자로 보여 줍니다.
+    public init(style: ResolvedStyle, source: DocumentSource?, images: ImageProviding?) {
         self.style = style
-        self.baseURL = baseURL
+        self.source = source
+        self.images = images
+    }
+
+    /// 로컬 파일 `baseURL`을 기준으로 링크와 이미지를 풉니다.
+    public convenience init(style: ResolvedStyle, baseURL: URL?) {
+        self.init(style: style, source: baseURL.map { .file($0) }, images: LocalImageProvider(baseURL: baseURL))
     }
 
     public func render(_ document: MarkdownDocument) -> RenderedDocument {
@@ -682,35 +692,11 @@ public final class DocumentRenderer {
     // MARK: - Links, images, anchors
 
     private func linkValue(for destination: String) -> Any {
-        if destination.hasPrefix("#") {
-            let fragment = String(destination.dropFirst()).removingPercentEncoding ?? String(destination.dropFirst())
-            var components = URLComponents()
-            components.scheme = Self.anchorScheme
-            components.path = fragment
-            return components.url ?? destination
-        }
-        if let url = URL(string: destination), url.scheme != nil {
-            return url
-        }
-        if let baseURL, let url = URL(string: destination, relativeTo: baseURL) ?? fileURL(for: destination) {
-            return url.absoluteURL
-        }
-        return destination
-    }
-
-    private func fileURL(for path: String) -> URL? {
-        guard let baseURL else { return nil }
-        let decoded = path.removingPercentEncoding ?? path
-        if decoded.hasPrefix("/") { return URL(fileURLWithPath: decoded) }
-        return URL(fileURLWithPath: decoded, relativeTo: baseURL).standardizedFileURL
+        LinkPolicy.linkValue(for: destination, in: source)
     }
 
     private func imageAttachment(for ref: ImageRef) -> ImageAttachment? {
-        if let url = URL(string: ref.source), let scheme = url.scheme {
-            return scheme == "file" ? ImageAttachment(url: url) : nil
-        }
-        guard let url = fileURL(for: ref.source) else { return nil }
-        return ImageAttachment(url: url)
+        images?.attachment(for: ref)
     }
 
     private func uniqueSlug(for title: String) -> String {

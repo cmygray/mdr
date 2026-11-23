@@ -5,6 +5,7 @@
 //   tmp/shot window <bundle id>          그 앱의 맨 앞 일반 창: "<창 번호> <폭> <높이>"
 //   tmp/shot pixel <그림.png> <x 비율> <y 비율>   그 위치(0~1, 왼쪽 위 기준)의 색: "r g b" (0~1)
 //   tmp/shot quit <bundle id>            그 앱을 끝냅니다(끝날 때까지 기다립니다)
+//   tmp/shot handler <url>               시스템이 그 주소를 넘겨줄 앱의 경로(없으면 "none")
 //   tmp/shot compose <왼쪽.png> <오른쪽.png> <결과.png> <왼쪽 이름> <오른쪽 이름>
 //                                        두 그림을 이름표와 함께 나란히 붙입니다.
 
@@ -20,6 +21,10 @@ func fail(_ message: String) -> Never {
 switch arguments.first {
 case "access":
     print(CGPreflightScreenCaptureAccess() ? "yes" : "no")
+
+case "handler":
+    guard arguments.count == 2, let url = URL(string: arguments[1]) else { fail("주소가 필요합니다") }
+    print(NSWorkspace.shared.urlForApplication(toOpen: url)?.path ?? "none")
 
 case "window":
     guard arguments.count == 2,

@@ -6,16 +6,17 @@ enum ScrollPositionStore {
     private static let key = "scrollPositions"
     private static let limit = 500
 
-    static func anchor(for url: URL) -> ReadingAnchor? {
+    /// `key`는 `DocumentSnapshot.positionKey`입니다. 로컬 파일은 경로, 원격 문서는 기기와 문서 이름표입니다.
+    static func anchor(forKey documentKey: String) -> ReadingAnchor? {
         guard let all = UserDefaults.standard.dictionary(forKey: key),
-              let entry = all[url.standardizedFileURL.path] as? [String: Double],
+              let entry = all[documentKey] as? [String: Double],
               let index = entry["index"], let delta = entry["delta"] else { return nil }
         return ReadingAnchor(index: Int(index), delta: CGFloat(delta))
     }
 
-    static func save(_ anchor: ReadingAnchor, for url: URL) {
+    static func save(_ anchor: ReadingAnchor, forKey documentKey: String) {
         var all = UserDefaults.standard.dictionary(forKey: key) ?? [:]
-        all[url.standardizedFileURL.path] = [
+        all[documentKey] = [
             "index": Double(anchor.index),
             "delta": Double(anchor.delta),
             "time": Date().timeIntervalSince1970,
@@ -99,6 +100,13 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         readerController.onPositionChange = { [weak self] anchor in
             self?.positionDidChange(anchor)
         }
+        readerController.onRetry = { [weak self] in
+            self?.readerDocument?.retryLoading()
+        }
+        if document.source?.isRemote == true {
+            // 원격 문서의 창은 다음 실행 때 되살리지 않습니다. 링크의 token이 그때까지 살아 있다는 보장이 없습니다.
+            window.isRestorable = false
+        }
         NotificationCenter.default.addObserver(self, selector: #selector(applyAppearance),
                                                name: StyleStore.didChange, object: nil)
         applyAppearance()
@@ -118,9 +126,16 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             LaunchClock.mark("windowReady")
             // 창을 만드는 동안 파싱이 백그라운드에서 진행됐습니다. 거의 끝났으면 잠깐 기다려 내용과 함께 띄우고,
             // 오래 걸리는 큰 문서라면 빈 창을 먼저 띄운 뒤 끝나는 대로 채웁니다.
-            readerDocument.waitForContent(timeout: 0.1)
+            // 원격 문서는 기다리지 않습니다. 내용이 네트워크에서 메인 스레드로 도착하므로, 여기서 기다리면 그만큼 늦어질 뿐입니다.
+            if readerDocument.source?.isRemote != true {
+                readerDocument.waitForContent(timeout: 0.1)
+            }
             readerDocument.whenContentIsReady { [weak self] in
                 self?.displayContent()
+            }
+            sourceDidUpdate()
+            if readerDocument.content == nil, let state = readerDocument.feed?.state {
+                feedStateDidChange(state)
             }
         }
         super.showWindow(sender)
@@ -130,7 +145,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     private func displayContent() {
         guard let readerDocument else { return }
-        let saved = remembersPosition ? readerDocument.fileURL.flatMap(ScrollPositionStore.anchor(for:)) : nil
+        let saved = remembersPosition ? readerDocument.positionKey.flatMap(ScrollPositionStore.anchor(forKey:)) : nil
         readerController.display(readerDocument, restoring: saved)
         // 처음 연 화면에서도 지금 읽는 절을 목차에 표시합니다.
         outlineController.highlight(characterIndex: (readerController.currentAnchor()?.index ?? 0) + 1)
@@ -145,6 +160,32 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     func documentDidReload() {
         readerController.rerender()
+    }
+
+    /// 원격 문서를 내준 기기를 제목 아래에 보여 줍니다.
+    func sourceDidUpdate() {
+        guard case .remote(let location) = readerDocument?.source else { return }
+        window?.subtitle = readerDocument?.remoteHostName ?? location.host
+    }
+
+    /// 문서를 가져오는 상태가 바뀌었습니다. 아직 받은 것이 없으면 본문 자리에, 받은 뒤라면 창 아래 띠로 알립니다.
+    func feedStateDidChange(_ state: FeedState) {
+        switch state {
+        case .loading:
+            // 금방 도착하면 안내가 깜빡이기만 합니다. 조금 기다린 뒤에도 받지 못했을 때만 보여 줍니다.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard let self, self.readerDocument?.content == nil, self.readerDocument?.feed?.state == .loading else { return }
+                self.readerController.showStatus(.loading)
+            }
+        case .live:
+            readerController.showNotice(nil)
+        case .failed(let error):
+            readerController.showStatus(.failed(title: error.title, detail: error.detail, retryable: error.isRetryable))
+            Automation.shared.documentDidFail(self)
+        case .stale(let error):
+            let tail = error.isRetryable ? "다시 연결하는 중입니다." : "지금 보이는 것은 마지막으로 받은 내용입니다."
+            readerController.showNotice("\(error.title). \(tail)")
+        }
     }
 
     @objc private func applyAppearance() {
@@ -172,9 +213,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     func savePosition() {
-        guard remembersPosition, didDisplay,
-              let url = readerDocument?.fileURL, let anchor = readerController.currentAnchor() else { return }
-        ScrollPositionStore.save(anchor, for: url)
+        guard remembersPosition, didDisplay, readerDocument?.content != nil,
+              let key = readerDocument?.positionKey, let anchor = readerController.currentAnchor() else { return }
+        ScrollPositionStore.save(anchor, forKey: key)
     }
 
     func windowWillClose(_ notification: Notification) {
