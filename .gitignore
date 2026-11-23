@@ -6,3 +6,15 @@ tmp/
 DerivedData/
 .DS_Store
 xcuserdata/
+
+# 원격 검증(scripts/verify-remote.sh)의 원본 출력에는 실행한 기기의 tailnet 주소, 기기 이름, token이 들어갑니다.
+# 요약과 Linux 컨테이너 결과만 저장소에 둡니다.
+output/verify-remote/*
+!output/verify-remote/SUMMARY.txt
+!output/verify-remote/linux-*.txt
+
+# 서명한 앱 묶음(scripts/dist.sh)
+output/dist/
+
+# 세션 사이에 주고받는 작업 메모
+/handoff-*.md

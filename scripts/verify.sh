@@ -5,6 +5,7 @@
 #
 # 이전 결과를 지우고 시작하고, 스냅숏 실행이 하나라도 실패하면 전체를 실패로 봅니다.
 # 그래서 옛 결과 파일이 남아 통과로 보이는 일이 없습니다. 판정 요약은 output/verify/SUMMARY.txt에도 남습니다.
+# 끝나면 결과 파일에 든 이 기기의 경로(홈 폴더, 임시 폴더)를 가립니다(scripts/check-private.py --redact).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p output/verify tmp
@@ -249,4 +250,7 @@ check("목차 이동", jump["outlineRowTitle"] != "" and jump["topHeading"] == j
 print("전체 결과:", "통과" if ok else "실패 있음")
 sys.exit(0 if ok else 1)
 PY
-exit ${pipestatus[1]}
+result=${pipestatus[1]}
+# 측정값과 기록에는 문서의 전체 경로가 들어 있습니다. 저장소에 넣기 전에 가립니다.
+MDR_CHECK_ALLOW_NO_TAILSCALE=1 scripts/check-private.py --redact "$out" || result=1
+exit $result

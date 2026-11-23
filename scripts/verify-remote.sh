@@ -6,6 +6,10 @@
 # 이 Mac의 Tailscale이 켜져 있어야 합니다. 서버를 이 Mac의 tailnet 주소에 띄우고, 앱이 그 링크로 문서를 엽니다.
 # 서버의 상태 폴더는 /tmp에 따로 두므로, 원이 쓰고 있는 서버(있다면)는 건드리지 않습니다.
 # 이전 결과를 지우고 시작하고, 판정이 하나라도 어긋나면 0이 아닌 값으로 끝납니다.
+#
+# 결과 파일에는 이 기기의 tailnet 주소, 기기 이름, 확인에 쓴 링크의 token이 들어갑니다. 그래서 저장소에는
+# 요약(SUMMARY.txt)만 넣고 나머지는 .gitignore로 뺍니다. 요약도 끝날 때 실제 값을 예시 값으로 바꿉니다
+# (scripts/check-private.py --redact). 스냅숏에는 창 제목 아래에 기기 이름이 찍혀 있어 가릴 수 없습니다.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 out="$PWD/output/verify-remote"
@@ -154,7 +158,9 @@ done
 sleep 0.5
 started=""
 for candidate in $(pgrep -x mdr); do
-  [[ " $before " == *" $candidate "* ]] || started="$started $candidate"
+  # 이 확인이 띄운 것만 고릅니다: 확인 전에는 없었고, 이 저장소에서 빌드한 앱의 실행 파일인 프로세스
+  [[ " $before " == *" $candidate "* ]] && continue
+  [ "$(ps -o comm= -p $candidate 2>/dev/null)" = "$bin" ] && started="$started $candidate"
 done
 print -r -- "streams=$streams started=${started# } handler=$handler" > "$out/url-scheme.txt"
 for candidate in ${=started}; do kill -TERM $candidate 2>/dev/null; done
@@ -251,7 +257,7 @@ link2 = text("link-after-restart.txt").strip()
 check("서버가 다시 뜨면 링크(token)가 바뀜", link2 and link2 != link, "이전 링크와 다름" if link2 != link else "같음")
 check("읽던 자리는 token이 바뀌어도 이어짐", p0.get("topCharacterIndex") == 0 and p1.get("topCharacterIndex", 0) > 0
       and p2.get("topCharacterIndex") == p1.get("topCharacterIndex") and p1.get("positionKey") == p2.get("positionKey") and "/id/" in p1.get("positionKey", ""),
-      f'처음 {p0.get("topCharacterIndex")} → 저장 {p1.get("topCharacterIndex")}("{p1.get("topHeading")}") → 새 링크로 열었을 때 {p2.get("topCharacterIndex")}("{p2.get("topHeading")}"), 키 {p1.get("positionKey")}')
+      f'처음 {p0.get("topCharacterIndex")} → 저장 {p1.get("topCharacterIndex")}("{p1.get("topHeading")}") → 새 링크로 열었을 때 {p2.get("topCharacterIndex")}("{p2.get("topHeading")}"), 키 {re.sub(r"/id/[0-9a-f]+", "/id/<문서 이름표>", p1.get("positionKey", ""))}')
 
 relink = load("relink.json")
 relinked = text("link-relinked.txt").strip()
@@ -299,4 +305,7 @@ check("확인 뒤 서버가 남아 있지 않음", "없습니다" in text("final
 print("전체 결과:", "통과" if ok else "실패 있음")
 sys.exit(0 if ok else 1)
 PY
-exit ${pipestatus[1]}
+result=${pipestatus[1]}
+# 이 기기의 tailnet 주소·기기 이름·경로를 예시 값으로 바꿉니다. Tailscale에서 값을 읽지 못하면 실패로 봅니다.
+scripts/check-private.py --redact "$out" || result=1
+exit $result
