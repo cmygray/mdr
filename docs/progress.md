@@ -508,7 +508,8 @@ Rex 팬을 하나 새로 만들어(`rex run --split`) 그 안에서 `mdr fixture
 
 ## 확인하지 못한 것
 
-- **다른 Mac에서의 실행.** zip을 이 Mac에서 풀어 서명 확인과 실행까지 했습니다. 다른 기기에는 아무것도 복사하거나 실행하지 않았습니다. 받는 Mac에서 처음 열 때 경고가 뜨는지, `mdr://` 링크가 그 앱으로 가는지는 원이 확인해야 합니다.
+- **다른 Mac에서의 실행.** 2026-11-23 메인 세션이 다른 Mac(macOS 26.6.2, arm64)에 설치해 확인했습니다. 첫 Release 앱은 원격 문서를 불러오지 못했습니다. 앱 화면은 "서버에 연결할 수 없습니다"였고, 로그는 `NSURLErrorDomain -1022`("does not conform to ATS policy")였습니다. App Transport Security가 tailnet IP로 가는 평문 http를 막았습니다. `NSAllowsLocalNetworking`으로는 풀리지 않았습니다(tailnet 범위를 로컬로 보지 않음). 그래서 `project.yml`에 `NSAllowsArbitraryLoads`를 넣었습니다. 그 뒤 그 Mac에서 문서가 열리고 변경 알림 연결이 생긴 것을 확인했습니다(서버의 `streams` 1, 창 제목에 서버 기기 이름). quarantine 표시가 없으므로, 공증하지 않은 앱도 경고 없이 실행됐습니다.
+- **2단계 검증이 이 문제를 놓친 까닭.** `scripts/verify-remote.sh`는 Debug 앱을 서버와 같은 Mac에서 띄웁니다. 그 경우 ATS에 막히지 않았습니다. 원인은 확인하지 못했고, 추정은 자기 Mac의 주소로 가는 연결을 ATS가 로컬로 보기 때문입니다. 다른 Mac에서 Release 앱으로 확인하는 단계가 검증에 없습니다.
 - **링크를 마우스로 누르기, Tailscale을 실제로 끈 상태** 등 2단계의 "확인하지 못한 것"은 그대로입니다.
 - 스냅숏(PNG)에 개인 정보가 찍히지 않았는지는 스크립트가 보지 못합니다. `output/verify/`와 `output/compare/`의 그림 가운데 일부를 눈으로 봤고(창 제목에 파일 이름만 보임), 전부를 보지는 않았습니다.
 - Intel Mac 실물에서의 실행(Rosetta로만 확인).

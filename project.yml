@@ -25,6 +25,11 @@ targets:
         NSHighResolutionCapable: true
         NSPrincipalClass: NSApplication
         NSSupportsAutomaticTermination: false
+        # mdr serve는 tailnet IP(100.64.0.0/10, fd7a:115c:a1e0::/48)에 http로 내줍니다. 회선은 WireGuard가 암호화합니다.
+        # NSAllowsLocalNetworking은 tailnet 범위를 로컬로 보지 않아 -1022로 막힙니다(2026-11-23 다른 Mac에서 확인).
+        # 앱은 요청 전에 host가 tailnet 범위인지 검사하고(RemoteLocation), 웹 링크는 브라우저로 넘깁니다.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
         MDRDevTokensPath: $(MDR_DEV_TOKENS_PATH)
         CFBundleURLTypes:
           - CFBundleURLName: kim.two.mdr.remote-document
