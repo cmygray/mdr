@@ -44,8 +44,11 @@ enum LaunchClock {
 ///         [-codeScroll 200] [-tableScroll 200] [-outlineRow 12] [-perform "zoomIn:,widenMeasure:"] [-persist YES]
 ///         [-metrics out.json] [-wait 0.5] [-exit YES]
 ///
-/// 원격 문서는 파일 대신 `-url "mdr://..."`로 엽니다. `-assumeTailscale off`는 Tailscale이 꺼진 것처럼 동작하게 하고,
-/// `-followLink "글자"`는 그 글자가 든 첫 링크를 누른 뒤 새로 열린 문서를 찍습니다.
+/// 원격 문서는 파일 대신 `-url "mdr://..."`로 엽니다.
+/// - `-assumeTailscale off`: Tailscale이 꺼진 것처럼 동작합니다. `off:2`는 시작 후 2초 동안만 그렇게 합니다.
+/// - `-followLink "글자"`: 그 글자가 든 첫 링크를 누른 뒤 새로 열린 문서를 찍습니다.
+/// - `-openLater 파일 [-openLaterAfter 3]`: 첫 문서를 연 뒤 3초 있다가, 그 파일에 적힌 링크를 엽니다
+///   (서버가 다시 떠서 새 링크를 받은 경우의 검증용). 새로 열린 문서를 찍습니다.
 final class Automation {
     static let shared = Automation()
 
@@ -71,8 +74,16 @@ final class Automation {
     private(set) var menuActions: [String] = []
     /// 시작할 때 열 `mdr://` 링크
     private(set) var remoteLink: URL?
-    /// Tailscale이 꺼진 것처럼 동작합니다(안내 화면 검증용).
-    private(set) var assumesTailscaleOff = false
+    /// 이 시각까지 Tailscale이 꺼진 것처럼 동작합니다(안내 화면과 자동 재시도 검증용).
+    private var tailscaleOffUntil: Date?
+    var assumesTailscaleOff: Bool {
+        tailscaleOffUntil.map { Date() < $0 } ?? false
+    }
+    private(set) var openLaterFile: URL?
+    private(set) var openLaterDelay: TimeInterval = 3
+    private var didOpenLater = false
+    /// 문서를 가져오지 못해 보여 준 안내의 제목들(순서대로)
+    private(set) var statusHistory: [String] = []
     /// 이 글자가 든 첫 링크를 누릅니다(문서 안 링크 검증용).
     private(set) var followLink: String?
     private var didFollowLink = false
@@ -115,7 +126,13 @@ final class Automation {
             case "-outlineRow": outlineRow = Int(value)
             case "-perform": menuActions = value.split(separator: ",").map(String.init)
             case "-url": remoteLink = URL(string: value)
-            case "-assumeTailscale": assumesTailscaleOff = value == "off"
+            case "-assumeTailscale":
+                let parts = value.split(separator: ":")
+                if parts.first == "off" {
+                    tailscaleOffUntil = parts.count > 1 ? Date().addingTimeInterval(Double(parts[1]) ?? 0) : .distantFuture
+                }
+            case "-openLater": openLaterFile = fileURL(value)
+            case "-openLaterAfter": openLaterDelay = Double(value) ?? openLaterDelay
             case "-followLink": followLink = value
             default: break
             }
@@ -136,6 +153,7 @@ final class Automation {
     /// 문서를 가져오지 못해 안내 화면이 떴습니다. 그 화면을 찍고 끝냅니다.
     func documentDidFail(_ controller: ReaderWindowController) {
         guard isActive, !didFinish else { return }
+        if case .failed(let title, _, _) = controller.readerController.status { statusHistory.append(title) }
         DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [self] in
             // 기다리는 사이에 문서가 도착했다면 그쪽이 마무리합니다.
             guard controller.readerController.status != nil else { return }
@@ -159,6 +177,19 @@ final class Automation {
                     guard NSDocumentController.shared.documents.count == before else { return }
                     proceed(controller)
                 }
+            }
+            return
+        }
+        if let openLaterFile, !didOpenLater {
+            // 조금 뒤에 파일에 적힌 링크를 엽니다. 새 문서가 표시되면 그 문서로 진행합니다.
+            didOpenLater = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + openLaterDelay) {
+                let text = (try? String(contentsOf: openLaterFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard let link = URL(string: text) else {
+                    NSLog("mdr: %@에서 링크를 읽지 못했습니다", openLaterFile.path)
+                    return
+                }
+                DocumentOpener.open(link: link)
             }
             return
         }
@@ -216,6 +247,7 @@ final class Automation {
             metrics["sidebarCollapsed"] = controller.isSidebarCollapsed
             metrics.merge(Self.sourceMetrics(controller)) { _, new in new }
             if followLink != nil { metrics["followLinkOpened"] = followLinkOpened }
+            metrics["statusHistory"] = statusHistory
             if let outlineRow { metrics["outlineRowTitle"] = controller.outlineController.title(atRow: outlineRow) ?? "" }
             if !codeBlock.isEmpty { metrics["codeBlock"] = codeBlock }
             if !tableBlock.isEmpty { metrics["tableBlock"] = tableBlock }

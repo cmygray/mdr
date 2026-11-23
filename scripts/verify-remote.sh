@@ -112,8 +112,19 @@ link2=$("$mdr" --url "$doc" 2>>"$log")
 print -r -- "$link2" > "$out/link-after-restart.txt"
 snap position-2-restored -url "$link2" -persist YES -wait 1
 
+echo "== 6-2. 보던 중에 서버가 다시 떠서 새 링크를 받은 경우: 죽은 링크의 창을 닫고 새 창이 자리를 이어받는지"
+later="$work/later.txt"; : > "$later"
+( sleep 1.5; "$mdr" stop >> "$log" 2>&1; "$mdr" --url "$doc" > "$later" 2>>"$log" ) &
+snap relink -url "$link2" -persist YES -openLater "$later" -openLaterAfter 4 -wait 1
+wait
+link2=$(cat "$later")
+print -r -- "$link2" > "$out/link-relinked.txt"
+
 echo "== 7. 가져오지 못할 때의 안내"
 token2=${${link2#mdr://*/}%%/*}
+# Tailscale이 꺼져 있다가(처음 2.5초) 켜지면 다시 시도해 문서를 엽니다.
+# (안내 화면이 뜬 뒤 4초를 기다리게 해서, 그 사이에 문서가 도착하는지 봅니다.)
+snap recover -url "$link2" -assumeTailscale off:2.5 -wait 4
 snap error-expired -url "${link2/$token2/expired-token-000}" -wait 1
 : > "$MDR_STATE_DIR/serve.log"
 snap error-tailscale-off -url "$link2" -assumeTailscale off -wait 1
@@ -242,7 +253,17 @@ check("읽던 자리는 token이 바뀌어도 이어짐", p0.get("topCharacterIn
       and p2.get("topCharacterIndex") == p1.get("topCharacterIndex") and p1.get("positionKey") == p2.get("positionKey") and "/id/" in p1.get("positionKey", ""),
       f'처음 {p0.get("topCharacterIndex")} → 저장 {p1.get("topCharacterIndex")}("{p1.get("topHeading")}") → 새 링크로 열었을 때 {p2.get("topCharacterIndex")}("{p2.get("topHeading")}"), 키 {p1.get("positionKey")}')
 
+relink = load("relink.json")
+relinked = text("link-relinked.txt").strip()
+check("새 링크로 열면 죽은 링크의 창을 닫고 자리를 이어받음", relink.get("source") == relinked and relinked != link2 and relink.get("documentCount") == 1
+      and relink.get("feedState") == "live" and relink.get("topCharacterIndex") == p1.get("topCharacterIndex"),
+      f'열린 문서 {relink.get("documentCount")}개(새 링크의 문서), 상태 {relink.get("feedState")}, 읽던 자리 {relink.get("topCharacterIndex")}("{relink.get("topHeading")}")')
+
 print("가져오지 못할 때의 안내")
+recover = load("recover.json")
+check("Tailscale이 켜지면 자동으로 다시 시도해 엶", recover.get("statusHistory") == ["Tailscale 연결이 필요합니다"] and recover.get("feedState") == "live"
+      and recover.get("textLength", 0) > 0,
+      f'처음 안내 {recover.get("statusHistory")} → 2.5초 뒤 Tailscale이 켜진 것으로 바꾸자 상태 {recover.get("feedState")}, 글자 수 {recover.get("textLength")}')
 def status_check(label, name, title):
     e = load(f"{name}.json")
     check(label, e.get("feedState") == "failed" and e.get("statusTitle") == title,

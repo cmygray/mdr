@@ -26,31 +26,47 @@ const localIdleLimit = 5 * time.Minute
 //  4. 양쪽이 다 붙어 있거나 알 수 없으면, 이 Mac의 키보드·마우스를 최근에 썼는지로 가립니다.
 //  5. Rex 밖의 로컬 터미널이면 바로 엽니다.
 func detectMode() (mode, reason string) {
-	if runtime.GOOS != "darwin" {
-		return "link", "macOS가 아님"
+	signals := modeSignals{
+		darwin: runtime.GOOS == "darwin",
+		ssh:    os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != "",
 	}
-	if os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != "" {
-		return "link", "SSH 세션"
+	if session := os.Getenv("REX_SESSION"); signals.darwin && !signals.ssh && session != "" {
+		signals.inRex = true
+		signals.rexLocal, signals.rexRemote, signals.rexKnown = rexViewers(session)
+		if !signals.rexKnown || (signals.rexLocal && signals.rexRemote) {
+			signals.idle, signals.idleKnown = hidIdle()
+		}
 	}
-	session := os.Getenv("REX_SESSION")
-	if session == "" {
-		return "open", "로컬 터미널"
-	}
-	local, remote, known := rexViewers(session)
+	return decideMode(signals)
+}
+
+// modeSignals는 판단에 쓰는 관찰값입니다.
+type modeSignals struct {
+	darwin, ssh, inRex            bool
+	rexLocal, rexRemote, rexKnown bool
+	idle                          time.Duration
+	idleKnown                     bool
+}
+
+func decideMode(s modeSignals) (mode, reason string) {
 	switch {
-	case known && local && !remote:
+	case !s.darwin:
+		return "link", "macOS가 아님"
+	case s.ssh:
+		return "link", "SSH 세션"
+	case !s.inRex:
+		return "open", "로컬 터미널"
+	case s.rexKnown && s.rexLocal && !s.rexRemote:
 		return "open", "이 Mac의 Rex 앱만 이 세션을 보고 있음"
-	case known && remote && !local:
+	case s.rexKnown && s.rexRemote && !s.rexLocal:
 		return "link", "다른 기기의 Rex 앱이 이 세션을 보고 있음"
+	case s.idleKnown && s.idle <= localIdleLimit:
+		return "open", fmt.Sprintf("이 Mac을 %s 전에 사용함", s.idle.Round(time.Second))
+	case s.idleKnown:
+		return "link", fmt.Sprintf("이 Mac을 %s 동안 쓰지 않음", s.idle.Round(time.Minute))
+	default:
+		return "link", "이 Mac 앞에 있는지 알 수 없음"
 	}
-	idle, ok := hidIdle()
-	if ok && idle <= localIdleLimit {
-		return "open", fmt.Sprintf("이 Mac을 %s 전에 사용함", idle.Round(time.Second))
-	}
-	if ok {
-		return "link", fmt.Sprintf("이 Mac을 %s 동안 쓰지 않음", idle.Round(time.Minute))
-	}
-	return "link", "이 Mac 앞에 있는지 알 수 없음"
 }
 
 // rexViewers는 이 세션에 붙어 있는 Rex 앱이 이 Mac의 것인지, 다른 기기의 것인지 알려 줍니다.
