@@ -1,0 +1,142 @@
+{
+  "allLineBreaks" : {
+    "breaks" : 15,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "backgroundRGB" : [
+    0.9882352941176471,
+    0.9882352941176471,
+    0.98039215686274506
+  ],
+  "bodyFont" : "PretendardVariable-Regular",
+  "bodyLeft" : 134,
+  "bodyLineBreaks" : {
+    "breaks" : 15,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "bodyLineHeight" : 26,
+  "bodyMaxLineWidth" : 543.20000000000005,
+  "bodySize" : 16,
+  "charactersPerHangulLine" : {
+    "count" : 0
+  },
+  "charactersPerLine" : {
+    "count" : 15,
+    "max" : 74,
+    "mean" : 68.700000000000003,
+    "median" : 70,
+    "p10" : 63,
+    "p90" : 73
+  },
+  "codeBlockCount" : 3,
+  "contextMenuActions" : [
+    "copyLink:",
+    "copy:"
+  ],
+  "documentCount" : 1,
+  "documentHeight" : 1283,
+  "feedState" : "live",
+  "fontScale" : 1,
+  "footnoteCount" : 0,
+  "fullLayoutMs" : 4.0999999999999996,
+  "headings" : [
+    {
+      "gapAbove" : -1,
+      "gapBelow" : 15,
+      "level" : 1,
+      "size" : 33
+    },
+    {
+      "gapAbove" : 43,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 43,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 36,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 36,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    }
+  ],
+  "imageCount" : 0,
+  "imagePixelWidths" : [
+
+  ],
+  "launchMs" : {
+    "appInit" : 33.299999999999997,
+    "didFinishLaunching" : 191.69999999999999,
+    "displayed" : 157.5,
+    "fontsRegistered" : 37.200000000000003,
+    "main" : 6.2000000000000002,
+    "parsed" : 62.5,
+    "read" : 61.5,
+    "rendered" : 157,
+    "renderStart" : 151.5,
+    "tokensLoaded" : 38,
+    "willFinishLaunching" : 41.5,
+    "windowInitEnd" : 146.19999999999999,
+    "windowInitStart" : 100.59999999999999,
+    "windowReady" : 151.5,
+    "windowShown" : 189.09999999999999
+  },
+  "measure" : 544,
+  "measuredBodyLineHeights" : [
+    26
+  ],
+  "measureScale" : 1,
+  "notice" : "",
+  "outlineCount" : 5,
+  "pendingImageAttachments" : 0,
+  "positionKey" : "<repo>\/fixtures\/02-english-readme.md",
+  "quoteParagraphCount" : 0,
+  "scheme" : "light",
+  "script" : "latin",
+  "scrollOffset" : 0,
+  "sidebarCollapsed" : false,
+  "source" : "<repo>\/fixtures\/02-english-readme.md",
+  "statusHistory" : [
+
+  ],
+  "tableCount" : 0,
+  "tableLineBreaks" : {
+    "breaks" : 0,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "textContainerInset" : [
+    134,
+    44
+  ],
+  "textLength" : 1609,
+  "tokenError" : "",
+  "tokenReloads" : 0,
+  "topCharacterIndex" : 0,
+  "topHeading" : "Swift Markdown",
+  "viewWidth" : 812,
+  "windowSubtitle" : "",
+  "windowTitle" : "02-english-readme.md"
+}

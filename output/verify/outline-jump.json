@@ -1,0 +1,305 @@
+{
+  "allLineBreaks" : {
+    "breaks" : 165,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "backgroundRGB" : [
+    0.9882352941176471,
+    0.9882352941176471,
+    0.98039215686274506
+  ],
+  "bodyFont" : "PretendardVariable-Regular",
+  "bodyLeft" : 158,
+  "bodyLineBreaks" : {
+    "breaks" : 150,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "bodyLineHeight" : 27,
+  "bodyMaxLineWidth" : 495.39999999999998,
+  "bodySize" : 16,
+  "charactersPerHangulLine" : {
+    "count" : 150,
+    "max" : 47,
+    "mean" : 42.799999999999997,
+    "median" : 43,
+    "p10" : 40,
+    "p90" : 45
+  },
+  "charactersPerLine" : {
+    "count" : 150,
+    "max" : 47,
+    "mean" : 42.799999999999997,
+    "median" : 43,
+    "p10" : 40,
+    "p90" : 45
+  },
+  "codeBlockCount" : 1,
+  "contextMenuActions" : [
+    "copy:"
+  ],
+  "documentCount" : 1,
+  "documentHeight" : 9546,
+  "feedState" : "live",
+  "fontScale" : 1,
+  "footnoteCount" : 8,
+  "fullLayoutMs" : 19.600000000000001,
+  "headings" : [
+    {
+      "gapAbove" : -1,
+      "gapBelow" : 15,
+      "level" : 1,
+      "size" : 33
+    },
+    {
+      "gapAbove" : 27,
+      "gapBelow" : 4,
+      "level" : 6,
+      "size" : 13.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 31,
+      "gapBelow" : 6,
+      "level" : 4,
+      "size" : 19
+    },
+    {
+      "gapAbove" : 27,
+      "gapBelow" : 4,
+      "level" : 5,
+      "size" : 16
+    },
+    {
+      "gapAbove" : 28,
+      "gapBelow" : 4,
+      "level" : 6,
+      "size" : 13.5
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 40,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 33,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 33,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    }
+  ],
+  "imageCount" : 3,
+  "imagePixelWidths" : [
+    500,
+    500,
+    1200
+  ],
+  "launchMs" : {
+    "appInit" : 39,
+    "didFinishLaunching" : 197.80000000000001,
+    "displayed" : 157.5,
+    "fontsRegistered" : 43.700000000000003,
+    "main" : 7.0999999999999996,
+    "parsed" : 76.400000000000006,
+    "read" : 72.299999999999997,
+    "rendered" : 156.80000000000001,
+    "renderStart" : 139.30000000000001,
+    "tokensLoaded" : 44.700000000000003,
+    "willFinishLaunching" : 49.899999999999999,
+    "windowInitEnd" : 134.09999999999999,
+    "windowInitStart" : 90.5,
+    "windowReady" : 139.19999999999999,
+    "windowShown" : 193.69999999999999
+  },
+  "measure" : 496,
+  "measuredBodyLineHeights" : [
+    27
+  ],
+  "measureScale" : 1,
+  "notice" : "",
+  "outlineCount" : 31,
+  "outlineRowTitle" : "5-C 블록 사이 간격",
+  "pendingImageAttachments" : 0,
+  "positionKey" : "<repo>\/fixtures\/03-images-typesetting.md",
+  "quoteParagraphCount" : 1,
+  "scheme" : "light",
+  "script" : "hangul",
+  "scrollOffset" : 7215,
+  "sidebarCollapsed" : false,
+  "source" : "<repo>\/fixtures\/03-images-typesetting.md",
+  "statusHistory" : [
+
+  ],
+  "tableCount" : 2,
+  "tableLineBreaks" : {
+    "breaks" : 23,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "textContainerInset" : [
+    158,
+    44
+  ],
+  "textLength" : 9747,
+  "tokenError" : "",
+  "tokenReloads" : 0,
+  "topCharacterIndex" : 6420,
+  "topHeading" : "5-C 블록 사이 간격",
+  "viewWidth" : 812,
+  "windowSubtitle" : "",
+  "windowTitle" : "03-images-typesetting.md"
+}

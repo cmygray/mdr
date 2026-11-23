@@ -1,0 +1,24 @@
+Linux x86_64, mdr 0.2.2
+Tailscale이 없는 호스트
+  통과  mdr FILE이 실패로 끝남 — 1
+  통과  이유를 알림 — mdr: Tailscale 데몬에 연결하지 못했습니다: Failed to connect to local Tailscale daemon for /localapi/v0/status; not running? Error: dial unix /var/run/tailscale/tailscaled.sock: connect: no such file or directory
+  통과  서버가 남지 않음 — 떠 있는 서버가 없습니다
+테스트 모드(127.0.0.1, 상대 확인 없음)
+  통과  명령 하나로 서버가 뜨고 링크가 나옴(macOS가 아니면 항상 링크) — mdr://127.0.0.1:6400/-fowjfOM8aHk4Cqx5AyrAQ/note.md
+  통과  문서 — # linux
+  통과  이미지 — PNG
+  통과  잘못된 token — 401
+  통과  인코딩된 경로 탈출 — 403
+  통과  폴더 밖을 가리키는 심볼릭 링크 — 403
+  통과  폴더 밖 파일 내용이 나오지 않음 — 
+  통과  상태 폴더는 XDG 위치 — /root/.local/state/mdr/ctl.sock
+  통과  제어 소켓 권한 — 600
+  통과  상태 폴더 권한 — 700
+  통과  같은 문서는 같은 링크 — mdr://127.0.0.1:6400/-fowjfOM8aHk4Cqx5AyrAQ/note.md
+  통과  변경 알림(SSE) — event: hello data: {"etag":"\"18ea8e41b61ab51a-8\""}  event: change data: {"etag":"\"18ea8e429379d99c-a\""}  
+  통과  강제 종료 뒤 다음 실행이 새 서버를 띄움 — yes
+  통과  새 링크로 문서를 가져옴 — # changed
+  통과  이전 링크는 만료 — 401
+  통과  쓰이지 않으면 스스로 끝남 — gone
+  통과  끝난 뒤 상태 — 떠 있는 서버가 없습니다
+결과: 통과

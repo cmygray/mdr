@@ -1,0 +1,164 @@
+{
+  "allLineBreaks" : {
+    "breaks" : 28,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "backgroundRGB" : [
+    1,
+    0.94509803921568625,
+    0.80000000000000004
+  ],
+  "bodyFont" : "PretendardVariable-Regular",
+  "bodyLeft" : 96,
+  "bodyLineBreaks" : {
+    "breaks" : 3,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "bodyLineHeight" : 34,
+  "bodyMaxLineWidth" : 593.39999999999998,
+  "bodySize" : 20,
+  "charactersPerHangulLine" : {
+    "count" : 2,
+    "max" : 41,
+    "mean" : 40,
+    "median" : 41,
+    "p10" : 39,
+    "p90" : 41
+  },
+  "charactersPerLine" : {
+    "count" : 3,
+    "max" : 50,
+    "mean" : 43.299999999999997,
+    "median" : 41,
+    "p10" : 39,
+    "p90" : 50
+  },
+  "codeBlockCount" : 0,
+  "contextMenuActions" : [
+
+  ],
+  "documentCount" : 1,
+  "documentHeight" : 2101,
+  "feedState" : "live",
+  "fontScale" : 1,
+  "footnoteCount" : 0,
+  "fullLayoutMs" : 21.399999999999999,
+  "headings" : [
+    {
+      "gapAbove" : -1,
+      "gapBelow" : 17,
+      "level" : 1,
+      "size" : 41.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 28,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    }
+  ],
+  "imageCount" : 0,
+  "imagePixelWidths" : [
+
+  ],
+  "launchMs" : {
+    "appInit" : 38,
+    "didFinishLaunching" : 212.69999999999999,
+    "displayed" : 172.30000000000001,
+    "fontsRegistered" : 42.100000000000001,
+    "main" : 6.2999999999999998,
+    "parsed" : 67.700000000000003,
+    "read" : 66,
+    "rendered" : 171.80000000000001,
+    "renderStart" : 158.59999999999999,
+    "tokensLoaded" : 42.899999999999999,
+    "willFinishLaunching" : 45.899999999999999,
+    "windowInitEnd" : 153.40000000000001,
+    "windowInitStart" : 107.7,
+    "windowReady" : 158.59999999999999,
+    "windowShown" : 210.09999999999999
+  },
+  "measure" : 620,
+  "measuredBodyLineHeights" : [
+    34
+  ],
+  "measureScale" : 1,
+  "notice" : "",
+  "outlineCount" : 8,
+  "pendingImageAttachments" : 0,
+  "positionKey" : "<repo>\/fixtures\/01-korean-handoff.md",
+  "quoteParagraphCount" : 0,
+  "scheme" : "light",
+  "script" : "hangul",
+  "scrollOffset" : 0,
+  "sidebarCollapsed" : false,
+  "source" : "<repo>\/fixtures\/01-korean-handoff.md",
+  "statusHistory" : [
+
+  ],
+  "tableCount" : 1,
+  "tableLineBreaks" : {
+    "breaks" : 21,
+    "forcedByLongWord" : 1,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "textContainerInset" : [
+    96,
+    44
+  ],
+  "textLength" : 2051,
+  "tokenError" : "",
+  "tokenReloads" : 1,
+  "topCharacterIndex" : 0,
+  "topHeading" : "마크다운 리더(mdr) 이어받기",
+  "viewWidth" : 812,
+  "windowSubtitle" : "",
+  "windowTitle" : "01-korean-handoff.md"
+}

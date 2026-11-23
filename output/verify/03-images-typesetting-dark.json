@@ -1,0 +1,305 @@
+{
+  "allLineBreaks" : {
+    "breaks" : 165,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "backgroundRGB" : [
+    0.10588235294117647,
+    0.10980392156862745,
+    0.12156862745098039
+  ],
+  "bodyFont" : "PretendardVariable-Regular",
+  "bodyLeft" : 158,
+  "bodyLineBreaks" : {
+    "breaks" : 150,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "bodyLineHeight" : 27,
+  "bodyMaxLineWidth" : 495.39999999999998,
+  "bodySize" : 16,
+  "charactersPerHangulLine" : {
+    "count" : 150,
+    "max" : 47,
+    "mean" : 42.799999999999997,
+    "median" : 43,
+    "p10" : 40,
+    "p90" : 45
+  },
+  "charactersPerLine" : {
+    "count" : 150,
+    "max" : 47,
+    "mean" : 42.799999999999997,
+    "median" : 43,
+    "p10" : 40,
+    "p90" : 45
+  },
+  "codeBlockCount" : 1,
+  "contextMenuActions" : [
+    "copyLink:",
+    "copy:"
+  ],
+  "documentCount" : 1,
+  "documentHeight" : 5796,
+  "feedState" : "live",
+  "fontScale" : 1,
+  "footnoteCount" : 8,
+  "fullLayoutMs" : 51.100000000000001,
+  "headings" : [
+    {
+      "gapAbove" : -1,
+      "gapBelow" : 15,
+      "level" : 1,
+      "size" : 33
+    },
+    {
+      "gapAbove" : 27,
+      "gapBelow" : 4,
+      "level" : 6,
+      "size" : 13.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 31,
+      "gapBelow" : 6,
+      "level" : 4,
+      "size" : 19
+    },
+    {
+      "gapAbove" : 27,
+      "gapBelow" : 4,
+      "level" : 5,
+      "size" : 16
+    },
+    {
+      "gapAbove" : 28,
+      "gapBelow" : 4,
+      "level" : 6,
+      "size" : 13.5
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 40,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 33,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 33,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    }
+  ],
+  "imageCount" : 3,
+  "imagePixelWidths" : [
+    500,
+    500,
+    1200
+  ],
+  "launchMs" : {
+    "appInit" : 36.399999999999999,
+    "didFinishLaunching" : 200.59999999999999,
+    "displayed" : 161.80000000000001,
+    "fontsRegistered" : 41.299999999999997,
+    "main" : 6.7000000000000002,
+    "parsed" : 71.200000000000003,
+    "read" : 67,
+    "rendered" : 161.09999999999999,
+    "renderStart" : 142.40000000000001,
+    "tokensLoaded" : 42.299999999999997,
+    "willFinishLaunching" : 45.799999999999997,
+    "windowInitEnd" : 135.69999999999999,
+    "windowInitStart" : 85.799999999999997,
+    "windowReady" : 142.30000000000001,
+    "windowShown" : 197.80000000000001
+  },
+  "measure" : 496,
+  "measuredBodyLineHeights" : [
+    27
+  ],
+  "measureScale" : 1,
+  "notice" : "",
+  "outlineCount" : 31,
+  "pendingImageAttachments" : 0,
+  "positionKey" : "<repo>\/fixtures\/03-images-typesetting.md",
+  "quoteParagraphCount" : 1,
+  "scheme" : "dark",
+  "script" : "hangul",
+  "scrollOffset" : 0,
+  "sidebarCollapsed" : false,
+  "source" : "<repo>\/fixtures\/03-images-typesetting.md",
+  "statusHistory" : [
+
+  ],
+  "tableCount" : 2,
+  "tableLineBreaks" : {
+    "breaks" : 23,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "textContainerInset" : [
+    158,
+    44
+  ],
+  "textLength" : 9747,
+  "tokenError" : "",
+  "tokenReloads" : 0,
+  "topCharacterIndex" : 0,
+  "topHeading" : "화면에서 읽는 글의 조판: 줄 길이, 행간, 줄바꿈",
+  "viewWidth" : 812,
+  "windowSubtitle" : "",
+  "windowTitle" : "03-images-typesetting.md"
+}

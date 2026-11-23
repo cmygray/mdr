@@ -1,0 +1,308 @@
+{
+  "allLineBreaks" : {
+    "breaks" : 165,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "backgroundRGB" : [
+    0.9882352941176471,
+    0.9882352941176471,
+    0.98039215686274506
+  ],
+  "bodyFont" : "PretendardVariable-Regular",
+  "bodyLeft" : 158,
+  "bodyLineBreaks" : {
+    "breaks" : 150,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "bodyLineHeight" : 27,
+  "bodyMaxLineWidth" : 495.39999999999998,
+  "bodySize" : 16,
+  "charactersPerHangulLine" : {
+    "count" : 150,
+    "max" : 47,
+    "mean" : 42.799999999999997,
+    "median" : 43,
+    "p10" : 40,
+    "p90" : 45
+  },
+  "charactersPerLine" : {
+    "count" : 150,
+    "max" : 47,
+    "mean" : 42.799999999999997,
+    "median" : 43,
+    "p10" : 40,
+    "p90" : 45
+  },
+  "codeBlockCount" : 1,
+  "contextMenuActions" : [
+    "copy:"
+  ],
+  "documentCount" : 1,
+  "documentHeight" : 8273,
+  "feedState" : "live",
+  "fontScale" : 1,
+  "footnoteCount" : 8,
+  "fullLayoutMs" : 28.800000000000001,
+  "headings" : [
+    {
+      "gapAbove" : -1,
+      "gapBelow" : 15,
+      "level" : 1,
+      "size" : 33
+    },
+    {
+      "gapAbove" : 27,
+      "gapBelow" : 4,
+      "level" : 6,
+      "size" : 13.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 31,
+      "gapBelow" : 6,
+      "level" : 4,
+      "size" : 19
+    },
+    {
+      "gapAbove" : 27,
+      "gapBelow" : 4,
+      "level" : 5,
+      "size" : 16
+    },
+    {
+      "gapAbove" : 28,
+      "gapBelow" : 4,
+      "level" : 6,
+      "size" : 13.5
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 40,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 33,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 33,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 35,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 35,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 37,
+      "gapBelow" : 8,
+      "level" : 3,
+      "size" : 23
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 44,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    },
+    {
+      "gapAbove" : 43,
+      "gapBelow" : 11,
+      "level" : 2,
+      "size" : 27.5
+    }
+  ],
+  "imageCount" : 0,
+  "imagePixelWidths" : [
+
+  ],
+  "launchMs" : {
+    "appInit" : 34.100000000000001,
+    "didFinishLaunching" : 67.599999999999994,
+    "displayed" : 148.5,
+    "fontsRegistered" : 38.899999999999999,
+    "main" : 6.0999999999999996,
+    "parsed" : 71.200000000000003,
+    "read" : 67,
+    "rendered" : 147.90000000000001,
+    "renderStart" : 131,
+    "tokensLoaded" : 40,
+    "willFinishLaunching" : 43.899999999999999,
+    "windowInitEnd" : 126.7,
+    "windowInitStart" : 86.599999999999994,
+    "windowReady" : 130.90000000000001,
+    "windowShown" : 188.69999999999999
+  },
+  "measure" : 496,
+  "measuredBodyLineHeights" : [
+    27
+  ],
+  "measureScale" : 1,
+  "notice" : "",
+  "outlineCount" : 32,
+  "pendingImageAttachments" : 0,
+  "positionKey" : "<repo>\/tmp\/verify-doc.md",
+  "quoteParagraphCount" : 1,
+  "scheme" : "light",
+  "script" : "hangul",
+  "scrollOffset" : 5381,
+  "sidebarCollapsed" : false,
+  "source" : "<repo>\/tmp\/verify-doc.md",
+  "statusHistory" : [
+
+  ],
+  "tableCount" : 2,
+  "tableLineBreaks" : {
+    "breaks" : 23,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "textContainerInset" : [
+    158,
+    44
+  ],
+  "textLength" : 9857,
+  "tokenError" : "",
+  "tokenReloads" : 0,
+  "topCharacterIndex" : 5329,
+  "topHeading" : "4-C 줄보다 긴 낱말",
+  "viewWidth" : 812,
+  "windowSubtitle" : "",
+  "windowTitle" : "verify-doc.md"
+}

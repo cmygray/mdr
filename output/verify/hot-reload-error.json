@@ -1,0 +1,164 @@
+{
+  "allLineBreaks" : {
+    "breaks" : 28,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "backgroundRGB" : [
+    1,
+    0.94509803921568625,
+    0.80000000000000004
+  ],
+  "bodyFont" : "PretendardVariable-Regular",
+  "bodyLeft" : 96,
+  "bodyLineBreaks" : {
+    "breaks" : 3,
+    "forcedByLongWord" : 0,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "bodyLineHeight" : 34,
+  "bodyMaxLineWidth" : 593.39999999999998,
+  "bodySize" : 20,
+  "charactersPerHangulLine" : {
+    "count" : 2,
+    "max" : 41,
+    "mean" : 40,
+    "median" : 41,
+    "p10" : 39,
+    "p90" : 41
+  },
+  "charactersPerLine" : {
+    "count" : 3,
+    "max" : 50,
+    "mean" : 43.299999999999997,
+    "median" : 41,
+    "p10" : 39,
+    "p90" : 50
+  },
+  "codeBlockCount" : 0,
+  "contextMenuActions" : [
+
+  ],
+  "documentCount" : 1,
+  "documentHeight" : 2101,
+  "feedState" : "live",
+  "fontScale" : 1,
+  "footnoteCount" : 0,
+  "fullLayoutMs" : 26.100000000000001,
+  "headings" : [
+    {
+      "gapAbove" : -1,
+      "gapBelow" : 17,
+      "level" : 1,
+      "size" : 41.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 28,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    },
+    {
+      "gapAbove" : 55,
+      "gapBelow" : 13,
+      "level" : 2,
+      "size" : 34.5
+    }
+  ],
+  "imageCount" : 0,
+  "imagePixelWidths" : [
+
+  ],
+  "launchMs" : {
+    "appInit" : 38.200000000000003,
+    "didFinishLaunching" : 191.5,
+    "displayed" : 146.19999999999999,
+    "fontsRegistered" : 42.5,
+    "main" : 6.5,
+    "parsed" : 68,
+    "read" : 66.400000000000006,
+    "rendered" : 145.59999999999999,
+    "renderStart" : 133.80000000000001,
+    "tokensLoaded" : 43.399999999999999,
+    "willFinishLaunching" : 46.600000000000001,
+    "windowInitEnd" : 128.5,
+    "windowInitStart" : 91.5,
+    "windowReady" : 133.69999999999999,
+    "windowShown" : 176.19999999999999
+  },
+  "measure" : 620,
+  "measuredBodyLineHeights" : [
+    34
+  ],
+  "measureScale" : 1,
+  "notice" : "",
+  "outlineCount" : 8,
+  "pendingImageAttachments" : 0,
+  "positionKey" : "<repo>\/fixtures\/01-korean-handoff.md",
+  "quoteParagraphCount" : 0,
+  "scheme" : "light",
+  "script" : "hangul",
+  "scrollOffset" : 0,
+  "sidebarCollapsed" : false,
+  "source" : "<repo>\/fixtures\/01-korean-handoff.md",
+  "statusHistory" : [
+
+  ],
+  "tableCount" : 1,
+  "tableLineBreaks" : {
+    "breaks" : 21,
+    "forcedByLongWord" : 1,
+    "insideWord" : 0,
+    "samples" : [
+
+    ]
+  },
+  "textContainerInset" : [
+    96,
+    44
+  ],
+  "textLength" : 2051,
+  "tokenError" : "토큰 파일 형식이 잘못됐습니다: baseSize: Expected to decode Double but found a string instead.",
+  "tokenReloads" : 1,
+  "topCharacterIndex" : 0,
+  "topHeading" : "마크다운 리더(mdr) 이어받기",
+  "viewWidth" : 812,
+  "windowSubtitle" : "",
+  "windowTitle" : "01-korean-handoff.md"
+}

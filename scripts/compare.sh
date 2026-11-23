@@ -52,9 +52,17 @@ for name in $fixtures; do
     sleep 1
   fi
 
-  # mdr는 QuickMD 창과 같은 크기로 찍습니다. 모양(라이트·다크)은 시스템 설정을 따릅니다.
-  scripts/snap.sh "$file" "$out/$name.mdr.png" -size "$size" -appearance system -sidebar hide 2>/dev/null
-  scripts/snap.sh "$file" "$out/$name.mdr-sidebar.png" -size "$size" -appearance system 2>/dev/null
+  # mdr는 QuickMD 창과 같은 크기, 같은 모양(라이트·다크)으로 찍습니다. QuickMD의 모양은 시스템 설정과 다를 수 있어서
+  # 찍힌 화면의 왼쪽 여백 한 점이 어두운지로 정합니다. QuickMD를 찍지 못했으면 시스템 설정을 따릅니다.
+  appearance=system
+  if [ -f "$out/$name.quickmd.png" ]; then
+    rgb=($(tmp/shot pixel "$out/$name.quickmd.png" 0.015 0.5))
+    if [ ${#rgb} -eq 3 ]; then
+      (( rgb[1] + rgb[2] + rgb[3] < 1.5 )) && appearance=dark || appearance=light
+    fi
+  fi
+  scripts/snap.sh "$file" "$out/$name.mdr.png" -size "$size" -appearance $appearance -sidebar hide 2>/dev/null
+  scripts/snap.sh "$file" "$out/$name.mdr-sidebar.png" -size "$size" -appearance $appearance 2>/dev/null
 
   if [ -f "$out/$name.quickmd.png" ]; then
     tmp/shot compose "$out/$name.mdr.png" "$out/$name.quickmd.png" "$out/$name.compare.png" "mdr" "QuickMD"

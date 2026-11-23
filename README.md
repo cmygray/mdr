@@ -20,6 +20,8 @@ scripts/build.sh Release    # Release 빌드 → build/Build/Products/Release/md
 
 `scripts/build.sh`는 `project.yml`로 Xcode 프로젝트를 만들고(`mdr.xcodeproj`는 저장소에 넣지 않습니다) `xcodebuild`로 빌드합니다. Xcode에서 열려면 `xcodegen generate` 뒤에 `open mdr.xcodeproj`를 실행하십시오.
 
+다른 Mac에 옮길 앱은 `scripts/dist.sh`로 만듭니다. Release로 빌드해(Apple Silicon과 Intel 겸용) 키체인의 Developer ID Application 인증서로 서명하고 `output/dist/mdr-<버전>.zip`으로 묶습니다. 공증은 하지 않으므로, `scp`나 `rsync`처럼 quarantine 표시가 붙지 않는 방법으로 옮겨야 그대로 열립니다.
+
 공유 Package만 다룰 때는 Xcode 프로젝트가 필요 없습니다.
 
 ```sh
@@ -113,7 +115,7 @@ mdr stop                     # 서버를 끝냅니다. 이전에 출력한 링�
 | `MDR_MODE=link\|open` | `--link`, `--open`과 같습니다 |
 | `MDR_TTL=12h` | 링크가 마지막으로 쓰인 뒤 살아 있는 시간이자, 서버가 쓰이지 않을 때 기다리는 시간 |
 | `MDR_PORT=6370` | 서버가 먼저 시도하는 포트. 쓰이고 있으면 빈 포트를 고릅니다 |
-| `MDR_APP=/경로/mdr.app` | 바로 열 때 쓸 앱(기본값은 번들 식별자 `dev.mdr.app`으로 찾습니다) |
+| `MDR_APP=/경로/mdr.app` | 바로 열 때 쓸 앱(기본값은 번들 식별자 `kim.two.mdr`으로 찾습니다) |
 | `MDR_STATE_DIR` | 서버의 제어 소켓과 기록을 두는 폴더. 기본값은 macOS `~/Library/Application Support/mdr/cli`, Linux `~/.local/state/mdr` |
 
 서버의 기록은 상태 폴더의 `serve.log`에 있습니다. 요청마다 한 줄이 남고 token은 적지 않습니다. 1MB를 넘으면 비우고 이어 씁니다.
@@ -189,6 +191,7 @@ scripts/verify-remote.sh   # 2단계: 실제 서버와 앱으로 원격 문서�
 scripts/verify-linux.sh    # 2단계: Linux용 바이너리를 Docker 컨테이너에서 실행 → output/verify-remote/linux-<arch>.txt
 scripts/build-cli.sh test  # Go 테스트(서버의 보안 경계 4개, 서버의 수명)
 scripts/compare.sh         # 문서마다 mdr와 QuickMD 화면을 나란히 저장 → output/compare/
+scripts/check-private.py   # 커밋 전: 저장소에 개인 정보(tailnet 주소·이름, 홈 경로, 이메일 등)가 들어갔는지 확인
 ```
 
 `scripts/verify-remote.sh`는 이 Mac의 Tailscale이 켜져 있어야 합니다. 서버를 이 Mac의 tailnet 주소에 띄우고 앱이 그 링크로 문서를 엽니다. 서버의 상태 폴더를 `/tmp`에 따로 두므로 쓰고 있는 서버가 있어도 건드리지 않고, 떠 있는 mdr 앱도 그대로 둡니다. 먼저 `scripts/build.sh`와 `scripts/build-cli.sh`를 실행해 두어야 합니다.
@@ -197,7 +200,11 @@ scripts/compare.sh         # 문서마다 mdr와 QuickMD 화면을 나란히 저
 
 `scripts/verify.sh`는 이전 결과를 지우고 시작하며, 스냅숏 실행이 하나라도 실패하거나 판정이 하나라도 어긋나면 0이 아닌 값으로 끝납니다. 먼저 `scripts/build.sh`로 Debug 빌드를 만들어 두어야 합니다.
 
-`scripts/compare.sh`는 QuickMD가 연 창과 같은 크기로, QuickMD처럼 사이드바를 접은 mdr를 찍어 나란히 붙입니다. QuickMD 창을 찍으려면, 스크립트를 실행하는 터미널 앱에 화면 기록 권한이 있어야 합니다(시스템 설정 > 개인정보 보호 및 보안 > 화면 및 시스템 오디오 기록). mdr는 자기 창을 스스로 찍으므로 권한이 필요 없습니다.
+검증 결과에는 실행한 기기의 정보가 섞입니다. 그래서 두 검증 스크립트는 끝날 때 결과 파일에서 그 값을 가립니다(`scripts/check-private.py --redact`). 홈 폴더와 저장소 경로는 `<repo>`와 `~`로, tailnet 주소와 기기 이름은 `100.101.102.103`, `host-a` 같은 예시 값으로 바뀝니다. `output/verify-remote/`는 요약(`SUMMARY.txt`)과 Linux 결과만 저장소에 넣고, 스냅숏과 측정값은 `.gitignore`로 뺍니다. 스냅숏의 창 제목 아래에 기기 이름이 찍혀 있고, 측정값에는 확인에 쓴 링크의 token이 들어 있기 때문입니다.
+
+`scripts/check-private.py`는 찾을 값을 실행할 때 이 기기에서 읽습니다(`tailscale status --json`, 홈 경로, 컴퓨터 이름, LAN 주소 등). 스크립트 안에는 값이 없습니다. 옵션 없이 실행하면 작업 폴더의 파일을, `--history`를 주면 모든 커밋의 메시지와 파일 내용을 봅니다. 찾으면 1로 끝납니다. 스냅숏(PNG)에 찍힌 글자는 보지 못합니다.
+
+`scripts/compare.sh`는 QuickMD가 연 창과 같은 크기와 같은 모양(라이트·다크)으로, QuickMD처럼 사이드바를 접은 mdr를 찍어 나란히 붙입니다. QuickMD 창을 찍으려면, 스크립트를 실행하는 터미널 앱에 화면 기록 권한이 있어야 합니다(시스템 설정 > 개인정보 보호 및 보안 > 화면 및 시스템 오디오 기록). mdr는 자기 창을 스스로 찍으므로 권한이 필요 없습니다.
 
 문서 여는 속도는 앱 바깥에서 잽니다. 어떤 앱이든 같은 방법으로 잴 수 있습니다.
 
@@ -212,7 +219,7 @@ tmp/bench /Applications/QuickMD.app cold 5 큰문서.md
 스냅숏 한 장만 찍을 때는 `scripts/snap.sh`를 씁니다. 옵션은 `App/macOS/Automation.swift` 머리말에 있습니다. 원격 문서는 파일 대신 `-url "mdr://..."`를 줍니다.
 
 ```sh
-scripts/snap.sh fixtures/03-images-typesetting.md tmp/a.png -size 1000x690 -appearance dark -scrollTo "V-B"
+scripts/snap.sh fixtures/03-images-typesetting.md tmp/a.png -size 1000x690 -appearance dark -scrollTo "3-A"
 ```
 
 ## 구조
@@ -234,10 +241,11 @@ cli/                     mdr 명령과 서버 (Go)
   internal/daemon/         서버의 수명(필요할 때 띄우기, 쓰이지 않으면 끝내기)과 제어 소켓
   internal/tailnet/        Tailscale에게 이 기기의 주소와 상대의 계정을 묻기
 project.yml              XcodeGen 프로젝트 정의
-fixtures/                비교 기준 문서. remote/는 원격 문서 확인용
-scripts/                 빌드, 스냅숏, 검증, 비교, 속도 측정
+fixtures/                비교 기준 문서. remote/는 원격 문서 확인용. 출처와 라이선스는 NOTICE.md
+scripts/                 빌드, 스냅숏, 검증, 비교, 속도 측정, 개인 정보 점검, fixture 그림 그리기
 output/                  검증·비교·측정 결과
 docs/                    설계(handoff.md)와 진행 기록(progress.md)
+LICENSE                  MIT
 ```
 
 ## 지원하는 문법
@@ -250,6 +258,17 @@ CommonMark와 GFM의 표, 취소선(`~~`만), 체크 목록을 지원합니다. 
 - 이미지: `![alt](상대경로)`. Obsidian의 `![[name]]`, 웹 주소의 이미지, SVG는 지원하지 않습니다.
 - 수식과 Mermaid는 지원하지 않습니다.
 
-## 글꼴
+## 라이선스
 
-[Pretendard](https://github.com/orioncactus/pretendard) Variable 1.3.9를 앱에 넣었습니다. SIL Open Font License 1.1이며, 라이선스 전문은 `Sources/MdrKit/Resources/Fonts/Pretendard-LICENSE.txt`에 있습니다.
+mdr는 MIT 라이선스입니다. 전문은 `LICENSE`에 있습니다. Copyright (c) 2026 Won Kim.
+
+다른 사람이 만든 것을 다음과 같이 씁니다. 각각 그 라이선스를 따릅니다.
+
+| 무엇 | 어디에 쓰는가 | 라이선스 |
+|---|---|---|
+| [Pretendard](https://github.com/orioncactus/pretendard) Variable 1.3.9 | 앱에 넣은 글꼴(`Sources/MdrKit/Resources/Fonts/`) | SIL Open Font License 1.1. 전문은 같은 폴더의 `Pretendard-LICENSE.txt` |
+| [swift-markdown](https://github.com/swiftlang/swift-markdown) 0.9.0 | 마크다운 파서(앱에 링크). `fixtures/02-english-readme.md`는 이 프로젝트의 README를 그대로 옮긴 것 | Apache License 2.0. 전문은 `fixtures/LICENSE-swift-markdown.txt` |
+| [swift-cmark](https://github.com/swiftlang/swift-cmark) 0.9.0 | swift-markdown이 쓰는 cmark-gfm(앱에 링크) | BSD 2-Clause 등. 그 저장소의 `COPYING` |
+| [tailscale.com](https://github.com/tailscale/tailscale) 1.104.7과 그 의존 모듈 | `mdr` 명령이 이 기기의 Tailscale에게 주소와 상대의 계정을 묻는 데 씀(CLI에 링크). 목록은 `cli/go.mod` | BSD 3-Clause 등. 각 모듈의 라이선스 |
+
+fixture 문서의 출처는 `fixtures/NOTICE.md`에 있습니다. `output/compare/`의 QuickMD 화면은 비교를 위해 그 앱의 창을 찍은 것입니다.
