@@ -66,6 +66,9 @@ public final class RemoteImageStore: ImageProviding {
     /// 받지 못한 이미지가 생겨 문서를 다시 그려야 할 때 부릅니다(대체 글자로 바꾸기 위해).
     public var onNeedsRerender: (() -> Void)?
 
+    /// 이보다 큰 이미지(가로×세로 픽셀)는 그리지 않습니다. 압축된 파일은 작아도 펼치면 메모리를 크게 씁니다.
+    public static let pixelLimit: CGFloat = 100_000_000
+
     public private(set) var loadedCount = 0
     public private(set) var failedCount = 0
     public var pendingCount: Int { loading.count }
@@ -97,12 +100,17 @@ public final class RemoteImageStore: ImageProviding {
         }
     }
 
+    private static func isDrawable(_ data: Data) -> Bool {
+        guard let size = ImageAttachment.pixelSize(of: data) else { return false }
+        return size.width * size.height <= pixelLimit
+    }
+
     private func load(_ target: RemoteLocation, knownETag: String?) {
         guard loading.insert(target).inserted else { return }
         Task { @MainActor [weak self, client] in
             let result: Result<RemoteClient.Fetch, Error>
             do {
-                result = .success(try await client.fetch(target, ifNoneMatch: knownETag))
+                result = .success(try await client.fetch(target, ifNoneMatch: knownETag, limit: RemoteClient.imageLimit))
             } catch {
                 result = .failure(error)
             }
@@ -115,7 +123,7 @@ public final class RemoteImageStore: ImageProviding {
         switch result {
         case .success(.notModified):
             return
-        case .success(.file(let file)) where ImageAttachment.pixelSize(of: file.data) != nil:
+        case .success(.file(let file)) where Self.isDrawable(file.data):
             if cache[target] == nil { loadedCount += 1 }
             cache[target] = Entry(data: file.data, etag: file.etag)
             for box in shown[target] ?? [] {

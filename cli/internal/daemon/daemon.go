@@ -129,10 +129,11 @@ func Run(ctx context.Context, cfg Config, ready func(Status, error)) error {
 		cfg.TTL = 12 * time.Hour
 	}
 
+	// 상태 폴더가 없으면 본인만 쓸 수 있게 만듭니다. 이미 있는 폴더의 권한은 바꾸지 않습니다
+	// (MDR_STATE_DIR로 남과 같이 쓰는 폴더를 가리켰을 수도 있습니다). 그 안에 만드는 소켓과 기록은
+	// 폴더의 권한과 상관없이 본인만 쓸 수 있게 만듭니다.
+	syscall.Umask(0o077)
 	if err := os.MkdirAll(cfg.Paths.Dir, 0o700); err != nil {
-		return fail(err)
-	}
-	if err := os.Chmod(cfg.Paths.Dir, 0o700); err != nil {
 		return fail(err)
 	}
 	lock, err := os.OpenFile(cfg.Paths.Lock, os.O_CREATE|os.O_RDWR, 0o600)
@@ -200,7 +201,11 @@ func Run(ctx context.Context, cfg Config, ready func(Status, error)) error {
 		Logf:       logger.Printf,
 	})
 	defer srv.Close()
-	data := &http.Server{Handler: srv, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: logger}
+	data := &http.Server{
+		Handler: srv, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: logger,
+		// 요청 줄과 머리말의 크기를 줄입니다. 문서 경로는 길어야 몇백 바이트입니다.
+		MaxHeaderBytes: 16 << 10,
+	}
 
 	// 제어 소켓. 잠금을 쥐고 있으므로 남아 있는 소켓 파일은 죽은 서버의 것입니다.
 	os.Remove(cfg.Paths.Socket)
@@ -321,6 +326,36 @@ loop:
 	controlServer.Shutdown(shutdown)
 	data.Shutdown(shutdown)
 	return result
+}
+
+// CappedLog는 기록 파일이 정해 둔 크기를 넘으면 비우고 이어 씁니다. 서버는 오래 떠 있고 요청마다 한 줄을 남기므로,
+// 실행 중에도 기록이 끝없이 자라지 않게 합니다. 파일은 덧붙이기 모드로 열려 있어야 합니다.
+type CappedLog struct {
+	mu    sync.Mutex
+	file  *os.File
+	limit int64
+	size  int64
+}
+
+func NewCappedLog(file *os.File, limit int64) *CappedLog {
+	capped := &CappedLog{file: file, limit: limit}
+	if info, err := file.Stat(); err == nil {
+		capped.size = info.Size()
+	}
+	return capped
+}
+
+func (c *CappedLog) Write(data []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.size+int64(len(data)) > c.limit {
+		if err := c.file.Truncate(0); err == nil {
+			c.size = 0
+		}
+	}
+	written, err := c.file.Write(data)
+	c.size += int64(written)
+	return written, err
 }
 
 // FormatPort는 포트를 문자열로 바꿉니다(자식 프로세스 인자용).

@@ -47,6 +47,30 @@ final class RemoteLocationTests: XCTestCase {
         XCTAssertTrue(Tailnet.isTailnetAddress("100.127.255.255"))
     }
 
+    /// `inet_pton`은 IPv6 주소 뒤의 `%구역`과 NUL 뒤의 글자를 무시하고 성공합니다. 그런 host를 받으면
+    /// 주소가 아닌 글자가 요청 주소에 섞이고, 주소를 만들다 앱이 죽었습니다(독립 검증에서 나온 결함).
+    func testRejectsHostsWithZoneOrTrailingBytes() throws {
+        for link in [
+            "mdr://[fd7a:115c:a1e0::1%25a%2Fb]:6370/tok/a.md",
+            "mdr://[fd7a:115c:a1e0::1%25en0]:6370/tok/a.md",
+            "mdr://[fd7a:115c:a1e0::1%25a%20b]:6370/tok/a.md",
+            "mdr://[::ffff:100.101.102.103]:6370/tok/a.md",
+        ] {
+            guard let url = URL(string: link) else { continue }
+            XCTAssertThrowsError(try RemoteLocation(url: url), link)
+        }
+        for host in ["fd7a:115c:a1e0::1%a/b", "fd7a:115c:a1e0::1\0xx", "100.101.102.103\0.evil.com", "100.101.102.103 ", "fd7a:115c:a1e0::1 ",
+                     "１００.101.102.103", "fd7a:115c:a1e0:0:0:0:0:0:1"] {
+            XCTAssertThrowsError(try RemoteLocation(host: host, port: 6370, token: "tok", components: ["a.md"]), host)
+            XCTAssertNil(Tailnet.canonicalAddress(host), host)
+        }
+        // 같은 주소의 다른 표기는 하나로 모읍니다.
+        let upper = try RemoteLocation(host: "FD7A:115C:A1E0:0:0:0:0:1", port: 6370, token: "tok", components: ["a.md"])
+        let lower = try RemoteLocation(host: "fd7a:115c:a1e0::1", port: 6370, token: "tok", components: ["a.md"])
+        XCTAssertEqual(upper, lower)
+        XCTAssertEqual(upper.fileURL.absoluteString, "http://[fd7a:115c:a1e0::1]:6370/v1/tok/files/a.md")
+    }
+
     func testRejectsMalformedLinks() {
         let links = [
             "http://100.101.102.103:6370/tok/a.md",          // 다른 scheme
@@ -195,6 +219,15 @@ final class RemoteProtocolTests: XCTestCase {
         ]
         XCTAssertEqual(lines.compactMap { parser.consume(line: $0) },
                        [.hello(etag: "\"1-2\""), .ping, .change(etag: "\"3-4\"")])
+    }
+
+    func testDocumentIDFromServerMustBeHex() {
+        XCTAssertEqual(RemoteClient.validDocumentID("16715cf97f750a038f15048c5cf70b22"), "16715cf97f750a038f15048c5cf70b22")
+        for bad in ["../../AAAA", "", "abc", String(repeating: "a", count: 100_000), "16715CF97F750A038F15048C5CF70B22", "16715cf97f750a03 8f15048c5cf70b22"] {
+            XCTAssertNil(RemoteClient.validDocumentID(bad), String(bad.prefix(40)))
+        }
+        XCTAssertNil(RemoteClient.validDocumentID(nil))
+        XCTAssertFalse(RemoteError.tooLarge.isRetryable)
     }
 
     func testPositionKeyDoesNotDependOnTokenOrPort() {

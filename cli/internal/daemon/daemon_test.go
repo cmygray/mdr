@@ -144,3 +144,41 @@ func freePort(t *testing.T) int {
 	defer listener.Close()
 	return listener.Addr().(*net.TCPAddr).Port
 }
+
+// 이미 있는 상태 폴더의 권한은 바꾸지 않고, 그 안의 소켓은 본인만 쓸 수 있게 만듭니다.
+func TestExistingStateDirPermissionsAreLeftAlone(t *testing.T) {
+	paths := testPaths(t)
+	if err := os.Chmod(paths.Dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := startServer(t, Config{Paths: paths, Version: "test", Port: freePort(t), InsecureBind: "127.0.0.1"}); err != nil {
+		t.Fatal(err)
+	}
+	if info, _ := os.Stat(paths.Dir); info.Mode().Perm() != 0o755 {
+		t.Errorf("상태 폴더 권한이 %o로 바뀌었습니다", info.Mode().Perm())
+	}
+	for _, name := range []string{paths.Socket, paths.Lock} {
+		if info, err := os.Stat(name); err != nil || info.Mode().Perm()&0o077 != 0 {
+			t.Errorf("%s 권한: %v (%v), 본인만 쓸 수 있어야 합니다", name, info.Mode().Perm(), err)
+		}
+	}
+}
+
+func TestCappedLogTruncatesInsteadOfGrowing(t *testing.T) {
+	file, err := os.OpenFile(t.TempDir()+"/serve.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	capped := NewCappedLog(file, 1000)
+	line := []byte(strings.Repeat("x", 99) + "\n")
+	for range 500 {
+		if _, err := capped.Write(line); err != nil {
+			t.Fatal(err)
+		}
+	}
+	info, _ := file.Stat()
+	if info.Size() > 1000 || info.Size() == 0 {
+		t.Errorf("기록 파일 크기 %d, 0보다 크고 1000 이하여야 합니다", info.Size())
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"mdr/internal/tailnet"
 )
@@ -560,6 +562,38 @@ func TestEventsReportChangesAndKeepTokenAlive(t *testing.T) {
 	for {
 		if got := readEvent(t, reader); got == "eof" {
 			break
+		}
+	}
+}
+
+// 확인을 통과하지 못한 요청이 긴 경로로 기록을 키울 수 없어야 하고, token은 기록에 남지 않아야 합니다.
+func TestLogDoesNotGrowWithRequestPathOrContainToken(t *testing.T) {
+	f := newFixture(t)
+	var mu sync.Mutex
+	var lines []string
+	f.server.opts.Logf = func(format string, args ...any) {
+		mu.Lock()
+		defer mu.Unlock()
+		lines = append(lines, fmt.Sprintf(format, args...))
+	}
+	long := strings.Repeat("가", 100_000)
+	f.get(ownerPeer, "/v1/wrong-token/files/"+long+".md") // token이 틀림
+	f.get("100.99.99.99:5000", "/v1/x/files/"+long+".md") // 다른 계정의 기기
+	f.get("192.168.0.9:5000", "/v1/x/files/"+long+".md")  // tailnet 밖
+	f.get(ownerPeer, f.file(long+"/../x.md"))             // 경로 거절
+	f.get(ownerPeer, f.file("note.md"))
+	if len(lines) == 0 {
+		t.Fatal("기록이 없습니다")
+	}
+	for _, line := range lines {
+		if len(line) > 600 {
+			t.Errorf("기록 한 줄이 %d바이트입니다: %.80s…", len(line), line)
+		}
+		if strings.Contains(line, f.token) {
+			t.Errorf("기록에 token이 들어 있습니다: %s", line)
+		}
+		if !utf8.ValidString(line) {
+			t.Errorf("기록이 글자 가운데에서 잘렸습니다")
 		}
 	}
 }

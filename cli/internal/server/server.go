@@ -32,6 +32,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"mdr/internal/tailnet"
 )
@@ -172,11 +173,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		kind, rel = "-", "-"
 	}
+	shown := clip(rel)
 	if kind == "events" {
-		s.opts.Logf("요청 %s %s %q 시작 (%s)", r.Method, kind, rel, r.RemoteAddr)
+		s.opts.Logf("요청 %s %s %q 시작 (%s)", r.Method, kind, shown, r.RemoteAddr)
 	}
 	s.serve(record, r)
-	s.opts.Logf("요청 %s %s %q → %d (%s)", r.Method, kind, rel, record.status, r.RemoteAddr)
+	s.opts.Logf("요청 %s %s %q → %d (%s)", r.Method, kind, shown, record.status, r.RemoteAddr)
+}
+
+// clip은 기록에 남길 글자를 줄입니다. 경로는 확인을 통과하지 못한 상대가 고른 글자일 수 있어서,
+// 그대로 적으면 긴 경로를 보내는 것만으로 기록 파일을 키울 수 있습니다.
+func clip(text string) string {
+	const limit = 160
+	if len(text) <= limit {
+		return text
+	}
+	cut := limit
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return fmt.Sprintf("%s…(+%d바이트)", text[:cut], len(text)-cut)
 }
 
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
@@ -203,7 +219,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, http.StatusUnauthorized, "invalid_token", "token이 만료되었거나 올바르지 않습니다")
 			return
 		}
-		s.opts.Logf("경로 거절 %s: %v", r.RemoteAddr, err)
+		s.opts.Logf("경로 거절 %s: %s", r.RemoteAddr, clip(err.Error()))
 		s.fail(w, r, http.StatusForbidden, "path_not_allowed", "문서 폴더 밖의 경로입니다")
 		return
 	}
@@ -316,7 +332,7 @@ func (s *Server) open(g *grant, rel string) (*os.File, fs.FileInfo, int, string)
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil, http.StatusNotFound, "not_found"
 		}
-		s.opts.Logf("열기 거절 %s: %v", rel, err)
+		s.opts.Logf("열기 거절 %s: %v", clip(rel), err)
 		return nil, nil, http.StatusForbidden, "path_not_allowed"
 	}
 	info, err = file.Stat()

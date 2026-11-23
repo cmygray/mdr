@@ -30,7 +30,7 @@ import (
 )
 
 // version이 다르면 `mdr`가 떠 있는 서버를 끝내고 새로 띄웁니다. 프로토콜이나 서버 동작을 바꾸면 올립니다.
-const version = "0.2.0"
+const version = "0.2.1"
 
 const usage = `사용법:
   mdr [옵션] FILE...   문서를 mdr 앱에서 엽니다
@@ -126,6 +126,10 @@ func runServe(args []string) error {
 	}
 	if config.InsecureBind == "" {
 		config.Tailnet = tailnet.NewLocal()
+	}
+	if *asDaemon {
+		// 띄운 쪽이 stderr를 기록 파일에 이어 두었습니다. 1MB를 넘으면 비우고 이어 씁니다.
+		config.Logger = log.New(daemon.NewCappedLog(os.Stderr, 1<<20), "", log.LstdFlags)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

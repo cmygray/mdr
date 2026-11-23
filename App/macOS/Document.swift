@@ -123,6 +123,7 @@ final class Document: NSDocument {
             guard let self else { return }
             self.positionKey = snapshot.positionKey
             self.remoteHostName = snapshot.hostName
+            DocumentOpener.closeStaleTwins(of: self)
             self.readerControllers.forEach { $0.sourceDidUpdate() }
             self.parse(snapshot.data)
         }
@@ -205,6 +206,20 @@ enum DocumentOpener {
         }
     }
 
+    /// `document`가 내용을 받았습니다. 같은 문서를 죽은 링크로 보여 주던 창이 있으면 닫습니다.
+    ///
+    /// 서버가 다시 떠서 `mdr 문서.md`로 새 링크를 받은 경우입니다. 같은 문서인지는 서버가 준 문서 이름표로
+    /// 가립니다(읽던 자리의 키와 같습니다). 그래서 다른 폴더의 같은 이름 문서를 닫지 않고, 닫히는 창의 읽던 자리는
+    /// 같은 키로 저장돼 새 창이 이어받습니다.
+    static func closeStaleTwins(of document: Document) {
+        guard case .remote(let location) = document.source, let key = document.positionKey else { return }
+        for other in NSDocumentController.shared.documents.compactMap({ $0 as? Document }) where other !== document {
+            guard case .remote(let old) = other.source, old != location, other.positionKey == key,
+                  case .stale = other.feed?.state else { continue }
+            other.close()
+        }
+    }
+
     private static func openRemote(_ location: RemoteLocation) {
         let documents = NSDocumentController.shared.documents.compactMap { $0 as? Document }
         // 이미 열려 있으면 그 창을 앞으로 가져옵니다. 받지 못하고 있었다면 다시 시도합니다.
@@ -214,15 +229,12 @@ enum DocumentOpener {
             NSApp.activate()
             return
         }
-        // 같은 문서를 죽은 링크로 열어 둔 창이 있으면 닫습니다. 서버가 다시 떠서 새 링크를 받은 경우입니다.
-        // 읽던 자리는 token과 상관없는 키로 기억하므로 새 창이 이어받습니다.
-        for stale in documents {
-            guard case .remote(let other) = stale.source, other.host == location.host, other.path == location.path,
-                  !other.sharesRoot(with: location) else { continue }
-            switch stale.feed?.state {
-            case .failed, .stale: stale.close()
-            default: break
-            }
+        // 같은 경로를 죽은 링크로 열려다 실패한 창(안내만 떠 있는 창)이 있으면 닫습니다.
+        // 내용을 보여 주고 있는 창은 여기서 닫지 않습니다. 같은 문서인지는 새 문서를 받은 뒤에야 알 수 있습니다.
+        for other in documents {
+            guard case .remote(let old) = other.source, old.host == location.host, old.path == location.path,
+                  !old.sharesRoot(with: location), case .failed = other.feed?.state else { continue }
+            other.close()
         }
         let document = Document(remote: location, client: client)
         NSDocumentController.shared.addDocument(document)
