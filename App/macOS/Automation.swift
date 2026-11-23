@@ -467,7 +467,9 @@ enum Metrics {
             }
 
             // 본문 문단(본문 글자 크기, 들여쓰지 않음)만 따로 봅니다.
-            guard let font = paragraph.attribute(.font, at: 0, effectiveRange: nil) as? NSFont,
+            // 제목은 뺍니다. 5단계 제목은 글자 크기가 본문과 같아서 크기만으로는 구별되지 않습니다.
+            guard pendingHeading == nil,
+                  let font = paragraph.attribute(.font, at: 0, effectiveRange: nil) as? NSFont,
                   let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle,
                   abs(font.pointSize - bodySize) < 0.01, paragraphStyle.headIndent == 0 else { return true }
             for (index, line) in lines.enumerated() {

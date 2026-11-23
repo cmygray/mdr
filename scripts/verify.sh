@@ -34,15 +34,15 @@ done
 
 echo "== 2. 요소별 스냅숏(표, 넓은 표와 가로 스크롤, 이미지, 인용문, 목록, 각주)"
 snap fixtures/01-korean-handoff.md "$out/element-table.png" -size $size -scrollTo "구조"
-snap fixtures/03-images-typesetting.md "$out/element-wide-table.png" -size $size -scrollTo "V-A"
-snap fixtures/03-images-typesetting.md "$out/element-wide-table-scrolled.png" -size $size -scrollTo "V-A" \
+snap fixtures/03-images-typesetting.md "$out/element-wide-table.png" -size $size -scrollTo "6-B"
+snap fixtures/03-images-typesetting.md "$out/element-wide-table-scrolled.png" -size $size -scrollTo "6-B" \
   -tableScroll 10000 -metrics "$out/table-scroll.json"
-snap fixtures/03-images-typesetting.md "$out/element-image.png" -size $size -scrollTo "V-B"
-snap fixtures/03-images-typesetting.md "$out/element-image-2.png" -size $size -scrollTo "V-C"
-snap fixtures/03-images-typesetting.md "$out/element-image-3.png" -size $size -scrollTo "V-D"
-snap fixtures/03-images-typesetting.md "$out/element-blockquote.png" -size $size -scrollTo "I 서론"
-snap fixtures/03-images-typesetting.md "$out/element-list.png" -size $size -scrollTo "III-C"
-snap fixtures/03-images-typesetting.md "$out/element-footnotes.png" -size $size -scrollTo "감사의"
+snap fixtures/03-images-typesetting.md "$out/element-image.png" -size $size -scrollTo "2-A"
+snap fixtures/03-images-typesetting.md "$out/element-image-2.png" -size $size -scrollTo "3-A"
+snap fixtures/03-images-typesetting.md "$out/element-image-3.png" -size $size -scrollTo "5-A"
+snap fixtures/03-images-typesetting.md "$out/element-blockquote.png" -size $size -scrollTo "1 들어가며"
+snap fixtures/03-images-typesetting.md "$out/element-list.png" -size $size -scrollTo "4-B"
+snap fixtures/03-images-typesetting.md "$out/element-footnotes.png" -size $size -scrollTo "이 글에 대하여"
 
 echo "== 3. 코드 블록 가로 스크롤"
 snap fixtures/02-english-readme.md "$out/code-scroll-before.png" -size $size -scrollTo "Getting Started"
@@ -78,7 +78,7 @@ echo "== 4-3. 문서 파일이 바뀌면 읽던 자리를 지키며 다시 그�
 doc="$PWD/tmp/verify-doc.md"
 cp fixtures/03-images-typesetting.md "$doc"
 ( sleep 1.5; print -r -- $'\n\n## 새로 붙인 절\n\n실행 중에 덧붙인 문단입니다.' >> "$doc" ) &
-snap "$doc" "$out/document-reload.png" -size $size -scrollTo "IV-C" -wait 3 -metrics "$out/document-reload.json"
+snap "$doc" "$out/document-reload.png" -size $size -scrollTo "4-C" -wait 3 -metrics "$out/document-reload.json"
 wait
 
 echo "== 4-4. 줄바꿈 전략 대조: 어절 단위(기본) / 시스템 표준 / 전략 없음"
@@ -94,7 +94,7 @@ echo "== 5. 문서별 스크롤 위치 기억"
 snap fixtures/03-images-typesetting.md "$out/scroll-memory-0-reset.png" -size $size -persist YES -scrollFraction 0 \
   -metrics "$out/scroll-memory-0.json"
 snap fixtures/03-images-typesetting.md "$out/scroll-memory-1-saved.png" -size $size -persist YES \
-  -scrollTo "IV-C" -metrics "$out/scroll-memory-1.json"
+  -scrollTo "4-C" -metrics "$out/scroll-memory-1.json"
 snap fixtures/03-images-typesetting.md "$out/scroll-memory-2-restored.png" -size $size -persist YES \
   -metrics "$out/scroll-memory-2.json"
 # 다른 문서는 영향을 받지 않아야 합니다.
@@ -136,7 +136,7 @@ expected = {
     # 원문에서 센 값: 이미지 문법, 코드 울타리 쌍, 표, 인용문 문단, 각주 정의
     "01-korean-handoff": dict(imageCount=0, codeBlockCount=0, tableCount=1, quoteParagraphCount=0, footnoteCount=0),
     "02-english-readme": dict(imageCount=0, codeBlockCount=3, tableCount=0, quoteParagraphCount=0, footnoteCount=0),
-    "03-images-typesetting": dict(imageCount=3, codeBlockCount=0, tableCount=1, quoteParagraphCount=1, footnoteCount=17),
+    "03-images-typesetting": dict(imageCount=3, codeBlockCount=1, tableCount=2, quoteParagraphCount=1, footnoteCount=8),
 }
 
 for name in ["01-korean-handoff", "02-english-readme", "03-images-typesetting"]:
@@ -225,7 +225,7 @@ check("토큰 오류 처리", error["tokenError"] != "" and error["bodySize"] ==
       f'오류 메시지 "{error["tokenError"]}", 본문 크기는 직전 값 {error["bodySize"]}pt 유지, 창 아래 띠 픽셀 {band}')
 
 reloaded, original = load("document-reload.json"), load("03-images-typesetting-light.json")
-check("문서 변경 반영", reloaded["outlineCount"] == original["outlineCount"] + 1 and reloaded["topHeading"].startswith("IV-C"),
+check("문서 변경 반영", reloaded["outlineCount"] == original["outlineCount"] + 1 and reloaded["topHeading"].startswith("4-C"),
       f'목차 {original["outlineCount"]}줄 → {reloaded["outlineCount"]}줄, 화면 맨 위 절은 그대로 "{reloaded["topHeading"]}"')
 
 s0, s1, s2, s3 = (load(f"scroll-memory-{i}.json") for i in range(4))

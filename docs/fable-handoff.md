@@ -11,7 +11,7 @@
 - 비교 기준 문서 3개는 `fixtures/`에 있습니다.
   - `01-korean-handoff.md`: 한국어 장문, 표, 목록, 인라인 코드
   - `02-english-readme.md`: swift-markdown README, 영문과 코드 블록
-  - `03-images-typesetting.md`: 한국어 번역 글, `fixtures/images/`의 상대 경로 이미지 3개, 표, 깊은 제목 단계
+  - `03-images-typesetting.md`: 한국어 장문, `fixtures/images/`의 상대 경로 이미지 3개, 표, 깊은 제목 단계 (처음에는 다른 사람의 글을 번역한 문서였고, 2026-11-23에 저장소를 공개하려고 새로 쓴 글로 바꿨습니다)
 - 아직 정하지 않은 것(CLI 언어, iPhone에서 Tailscale이 꺼져 있을 때의 경험)은 1단계와 관계없습니다. 정하지 마십시오.
 
 환경: Xcode 26.2, Swift 6.2.3, macOS 26. `/Applications/QuickMD.app`이 있습니다. Pretendard는 설치되어 있지 않습니다. 번들할지는 라이선스(OFL)와 앱 크기를 확인한 뒤 결정하고, 근거를 기록하십시오.

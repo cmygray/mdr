@@ -86,8 +86,8 @@ snap untrusted -url "$link" -scrollTo "그려지지" -wait 1.5
 # 같은 문서를 원격과 로컬로 열어 조판이 같은지 봅니다(1단계 fixture, 이미지 3장).
 cp -R fixtures/images fixtures/03-images-typesetting.md "$work/"
 link_same=$("$mdr" --url "$work/03-images-typesetting.md" 2>>"$log")
-snap same-remote -url "$link_same" -scrollTo "V-B" -wait 1.5
-scripts/snap.sh "$work/03-images-typesetting.md" "$out/same-local.png" -size 1000x690 -scrollTo "V-B" -metrics "$out/same-local.json" >> "$log" 2>&1
+snap same-remote -url "$link_same" -scrollTo "3-A" -wait 1.5
+scripts/snap.sh "$work/03-images-typesetting.md" "$out/same-local.png" -size 1000x690 -scrollTo "3-A" -metrics "$out/same-local.json" >> "$log" 2>&1
 
 echo "== 4. 문서가 바뀌면 읽던 자리를 지키며 다시 그리는지(SSE)"
 ( sleep 2; print -r -- $'\n\n## 실행 중에 붙인 절\n\n서버가 변경을 알려 주어 다시 그린 문단입니다.' >> "$doc" ) &

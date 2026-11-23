@@ -1,10 +1,12 @@
 # 문서 여는 속도 측정 (scripts/bench.swift)
 날짜: 2026-11-13 09:53
 기기: Apple M4 Max, macOS 26.6.2
-mdr: Release 빌드 (커밋 b5b6895), QuickMD: 1.14.0
+mdr: Release 빌드 (커밋 55da405), QuickMD: 1.14.0
+주: 2026-11-23에 저장소의 기록을 다시 쓰면서 커밋 번호가 바뀌었습니다(쟀을 때는 b5b6895). 아래의 fixture 03은 그때 쓰던 글이고,
+    지금의 fixtures/03-images-typesetting.md와 다른 글입니다. 번들 식별자도 그 뒤에 kim.two.mdr로 바뀌었습니다.
 화면 잠금 상태: "CGSSessionScreenIsLocked"=Yes
 
-## 큰 문서: 1044455 바이트 (fixture 세 개를 16번 이어 붙임)
+## 큰 문서: 1044455 바이트 (그때의 fixture 세 개를 16번 이어 붙임)
 앱: mdr.app (dev.mdr.app), 방식: cold, 반복: 5
   1: window 453 ms, settled 982 ms, cpu 340 ms
   2: window 394 ms, settled 576 ms, cpu 308 ms
@@ -42,7 +44,7 @@ mdr: Release 빌드 (커밋 b5b6895), QuickMD: 1.14.0
   settled 중앙값 1300 (최소 1272, 최대 1321)
   cpu 중앙값 1265 (최소 1231, 최대 1268)
 
-## 보통 문서: 58006 바이트 (fixtures/03-images-typesetting.md)
+## 보통 문서: 58006 바이트 (그때의 fixture 03)
 앱: mdr.app (dev.mdr.app), 방식: cold, 반복: 5
   1: window 391 ms, settled 981 ms, cpu 277 ms
   2: window 437 ms, settled 1010 ms, cpu 289 ms
