@@ -42,7 +42,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>dev.mdr.app.remote-document</string>
+			<string>kim.two.mdr.remote-document</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>mdr</string>

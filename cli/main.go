@@ -352,7 +352,7 @@ func isTerminal(file *os.File) bool {
 }
 
 // appBundleID는 mdr 앱의 번들 식별자입니다(project.yml과 같아야 합니다).
-const appBundleID = "dev.mdr.app"
+const appBundleID = "kim.two.mdr"
 
 func openLocally(files []string) error {
 	arguments := []string{"-b", appBundleID}

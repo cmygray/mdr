@@ -54,7 +54,7 @@ func TestOpenModeRunsOpenWithBundleIDAndRealPath(t *testing.T) {
 	}
 	got, _ := os.ReadFile(record)
 	real, _ := filepath.EvalSymlinks(filepath.Join(box.docs, "note.md"))
-	want := "-b\ndev.mdr.app\n--\n" + real + "\n"
+	want := "-b\nkim.two.mdr\n--\n" + real + "\n"
 	if string(got) != want {
 		t.Errorf("open 인자:\n%s\nwant:\n%s", got, want)
 	}

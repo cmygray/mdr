@@ -27,7 +27,7 @@ targets:
         NSSupportsAutomaticTermination: false
         MDRDevTokensPath: $(MDR_DEV_TOKENS_PATH)
         CFBundleURLTypes:
-          - CFBundleURLName: dev.mdr.app.remote-document
+          - CFBundleURLName: kim.two.mdr.remote-document
             CFBundleTypeRole: Viewer
             CFBundleURLSchemes: [mdr]
         CFBundleDocumentTypes:
@@ -48,7 +48,7 @@ targets:
               public.mime-type: [text/markdown]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.mdr.app
+        PRODUCT_BUNDLE_IDENTIFIER: kim.two.mdr
         PRODUCT_NAME: mdr
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
