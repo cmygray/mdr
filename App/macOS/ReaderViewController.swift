@@ -185,7 +185,13 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     /// 직전에 본 스크롤 위치(점프 감지용)
     private var observedScrollY: CGFloat = 0
     /// 문서 안 링크(목차가 아닌 본문의 `#제목`, 각주)로 이동하기 전의 자리들
-    private var backStack: [ReadingAnchor] = []
+    private var backStack: [BackEntry] = []
+
+    /// 돌아갈 자리와, 돌아갔을 때 눈길을 줄 글자 범위(누른 링크)
+    private struct BackEntry {
+        var anchor: ReadingAnchor
+        var origin: NSRange?
+    }
 
     // MARK: View
 
@@ -556,8 +562,46 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
 
     /// 문서 안 링크로 이동하기 전 자리로 돌아갑니다(⌘[).
     @objc func goBack(_ sender: Any?) {
-        guard let anchor = backStack.popLast() else { NSSound.beep(); return }
-        scroll(to: anchor)
+        guard let entry = backStack.popLast() else { NSSound.beep(); return }
+        scroll(to: entry.anchor)
+        flash(entry.origin)
+    }
+
+    // MARK: Jump highlight
+
+    /// 이동한 곳을 찾기(⌘F)와 같은 튀어 오르는 노란 상자로 잠깐 표시합니다. 어디를 봐야 할지 알려 주려는 것입니다.
+    private func flash(_ range: NSRange?) {
+        guard let range, range.length > 0, NSMaxRange(range) <= (textView.textStorage?.length ?? 0) else { return }
+        // 스크롤한 자리의 배치가 끝난 뒤에 띄워야 상자가 제자리에 그려집니다.
+        DispatchQueue.main.async { [weak self] in
+            self?.textView.showFindIndicator(for: range)
+        }
+    }
+
+    /// `index`의 글자에 걸린 링크 전체 범위(각주 번호 등)
+    private func linkRange(at index: Int) -> NSRange? {
+        guard let storage = textView.textStorage, index >= 0, index < storage.length else { return nil }
+        var range = NSRange()
+        guard storage.attribute(.link, at: index, effectiveRange: &range) != nil else { return nil }
+        return range
+    }
+
+    /// 문서 안 링크가 도착한 곳에서 표시할 범위입니다. 본문의 각주 참조로 돌아왔으면 그 번호,
+    /// 그 밖에는 도착한 문단(제목, 각주 정의)의 앞부분입니다.
+    private func targetRange(forAnchor name: String, at index: Int) -> NSRange? {
+        guard let storage = textView.textStorage, index >= 0, index < storage.length else { return nil }
+        if name.hasPrefix("fnref-") {
+            var range = NSRange()
+            if storage.attribute(.mdrFootnoteReference, at: index, effectiveRange: &range) != nil { return range }
+        }
+        let paragraph = (storage.string as NSString).paragraphRange(for: NSRange(location: index, length: 0))
+        var length = min(paragraph.length, 160)
+        // 문단 끝 줄바꿈은 빼서 상자가 다음 줄로 넘어가지 않게 합니다.
+        while length > 0, let scalar = UnicodeScalar((storage.string as NSString).character(at: paragraph.location + length - 1)),
+              CharacterSet.newlines.contains(scalar) {
+            length -= 1
+        }
+        return NSRange(location: paragraph.location, length: length)
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -635,10 +679,13 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         switch LinkPolicy.action(for: url, in: document?.source) {
         case .anchor(let name):
             if let index = rendered?.anchors[name] {
-                // 떠나는 자리를 기억해 두고, ⌘[로 돌아올 수 있게 합니다.
-                if let here = currentAnchor() { backStack.append(here) }
+                // 떠나는 자리와 누른 링크를 기억해 두고, ⌘[로 돌아올 수 있게 합니다.
+                if let here = currentAnchor() {
+                    backStack.append(BackEntry(anchor: here, origin: linkRange(at: charIndex)))
+                }
                 if backStack.count > 50 { backStack.removeFirst() }
                 scroll(toCharacterIndex: index)
+                flash(targetRange(forAnchor: name, at: index))
             }
         case .openExternally(let target):
             NSWorkspace.shared.open(target)

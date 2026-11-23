@@ -4,6 +4,9 @@ import MdrKit
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationWillFinishLaunching(_ notification: Notification) {
         LaunchClock.mark("appInit")
+        // 각주 툴팁을 빨리 띄웁니다(시스템 기본은 1초 남짓). 마우스가 멈춰 있을 때만 시간이 흐르므로,
+        // 문서 위를 지나가는 중에는 뜨지 않습니다. 사용자가 `defaults write kim.two.mdr NSInitialToolTipDelay`로 바꿀 수 있습니다.
+        UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 350])
         FontFactory.registerBundledFonts()
         LaunchClock.mark("fontsRegistered")
         BlockViewProvider.install()
