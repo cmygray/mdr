@@ -45,6 +45,7 @@ const usage = `사용법:
   --url         링크를 OSC 8 하이퍼링크 대신 글자 그대로 출력합니다
   --osc8        터미널이 아니어도 OSC 8 하이퍼링크로 출력합니다
   --root DIR    문서 폴더를 넓힙니다. 기본값은 문서가 있는 폴더이고, 서버는 이 폴더 밖을 내주지 않습니다
+  --why         바로 열지 링크를 출력할지 어떻게 정했는지 알려 줍니다
 
 환경 변수:
   MDR_MODE=link|open   --link, --open과 같습니다
@@ -193,6 +194,7 @@ func runStop() error {
 
 type openOptions struct {
 	mode  string // "", "link", "open"
+	why   bool
 	plain bool
 	osc8  bool
 	root  string
@@ -208,6 +210,8 @@ func parseOpenArgs(args []string) (openOptions, error) {
 			options.mode = "link"
 		case argument == "--open":
 			options.mode = "open"
+		case argument == "--why":
+			options.why = true
 		case argument == "--url":
 			options.plain = true
 		case argument == "--osc8":
@@ -264,6 +268,9 @@ func runOpen(args []string) error {
 	mode, reason := options.mode, "지정한 방식"
 	if mode == "" {
 		mode, reason = detectMode()
+	}
+	if options.why {
+		fmt.Fprintf(os.Stderr, "mdr: %s → %s\n", reason, map[string]string{"open": "이 Mac의 앱으로 엽니다", "link": "링크를 출력합니다"}[mode])
 	}
 	if mode == "open" {
 		err := openLocally(files)
