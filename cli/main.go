@@ -30,7 +30,7 @@ import (
 )
 
 // version이 다르면 `mdr`가 떠 있는 서버를 끝내고 새로 띄웁니다. 프로토콜이나 서버 동작을 바꾸면 올립니다.
-const version = "0.2.1"
+const version = "0.2.2"
 
 const usage = `사용법:
   mdr [옵션] FILE...   문서를 mdr 앱에서 엽니다

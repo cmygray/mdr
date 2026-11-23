@@ -28,6 +28,28 @@ final class ReaderTextView: NSTextView {
         pasteboard.setString(text, forType: .string)
     }
 
+    /// 오른쪽 단추 메뉴에는 복사와 찾아보기만 남깁니다.
+    ///
+    /// 읽기 전용 리더에 붙여넣기·글꼴·맞춤법 메뉴는 필요 없습니다. 그리고 링크를 여는 길은 `clickedOnLink`
+    /// 하나로 둡니다. 시스템이 메뉴에 넣는 항목이 링크 규칙을 거치지 않고 링크를 열 수 없게 하려는 것입니다.
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard let menu = super.menu(for: event) else { return nil }
+        let allowed: Set<String> = ["copy:", "copyLink:", "selectAll:", "_lookUpDefiniteRangeInDictionaryFromMenu:", "_lookUpIndefiniteRangeInDictionaryFromMenu:"]
+        for item in menu.items where !item.isSeparatorItem {
+            if !allowed.contains(item.action.map(NSStringFromSelector) ?? "") {
+                menu.removeItem(item)
+            }
+        }
+        // 항목을 지우고 남은 구분선(맨 앞, 맨 뒤, 연달아 있는 것)을 정리합니다.
+        var previousWasSeparator = true
+        for item in menu.items {
+            if item.isSeparatorItem, previousWasSeparator { menu.removeItem(item) }
+            previousWasSeparator = item.isSeparatorItem
+        }
+        if let last = menu.items.last, last.isSeparatorItem { menu.removeItem(last) }
+        return menu.items.isEmpty ? nil : menu
+    }
+
     override func keyDown(with event: NSEvent) {
         // 스페이스로 한 화면씩 넘깁니다.
         if event.charactersIgnoringModifiers == " " {
@@ -518,6 +540,30 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     }
 
     // MARK: Links
+
+    /// 첫 링크 위에서 오른쪽 단추를 눌렀을 때 뜨는 메뉴 항목들의 동작 이름입니다(자동화 검증용).
+    func contextMenuActionsAtFirstLink() -> [String] {
+        guard let storage = textView.textContentStorage?.textStorage, let window = view.window,
+              let layoutManager = textView.textLayoutManager, let contentStorage = textView.textContentStorage else { return [] }
+        var index: Int?
+        storage.enumerateAttribute(.link, in: NSRange(location: 0, length: storage.length)) { value, range, stop in
+            guard value != nil else { return }
+            index = range.location
+            stop.pointee = true
+        }
+        guard let index, let location = contentStorage.location(contentStorage.documentRange.location, offsetBy: index),
+              let fragment = layoutManager.textLayoutFragment(for: location),
+              let line = fragment.textLineFragments.first(where: { NSLocationInRange(index - contentStorage.offset(from: contentStorage.documentRange.location, to: fragment.rangeInElement.location), $0.characterRange) }) else { return [] }
+        let offset = index - contentStorage.offset(from: contentStorage.documentRange.location, to: fragment.rangeInElement.location)
+        let inLine = line.locationForCharacter(at: offset)
+        let origin = textView.textContainerOrigin
+        let point = NSPoint(x: origin.x + fragment.layoutFragmentFrame.minX + line.typographicBounds.minX + inLine.x + 3,
+                            y: origin.y + fragment.layoutFragmentFrame.minY + line.typographicBounds.midY)
+        guard let event = NSEvent.mouseEvent(with: .rightMouseDown, location: textView.convert(point, to: nil), modifierFlags: [], timestamp: 0,
+                                             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
+              let menu = textView.menu(for: event) else { return [] }
+        return menu.items.filter { !$0.isSeparatorItem }.map { $0.action.map(NSStringFromSelector) ?? "-" }
+    }
 
     /// 글자에 `text`가 든 첫 링크를 누른 것처럼 처리합니다(자동화 검증용). 그런 링크가 없으면 false입니다.
     func clickFirstLink(containing text: String) -> Bool {

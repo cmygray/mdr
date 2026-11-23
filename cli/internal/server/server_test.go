@@ -179,6 +179,10 @@ func TestServesDocumentsAndImagesInsideRoot(t *testing.T) {
 	if id := docID(f.root, "note.md"); id != got.header.Get("X-Mdr-Doc-Id") || id == docID(f.root, "other.md") {
 		t.Errorf("문서 이름표가 경로에서 정해지지 않습니다")
 	}
+	// 문서 폴더를 넓혀 열어도(--root) 같은 문서는 같은 이름표입니다.
+	if docID(f.root, "sub/deep.md") != docID(filepath.Join(f.root, "sub"), "deep.md") {
+		t.Errorf("문서 폴더가 다르면 같은 문서의 이름표가 달라집니다")
+	}
 }
 
 // 보안 경계 1: 문서 폴더 밖의 경로는 내주지 않습니다.

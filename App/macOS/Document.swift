@@ -174,6 +174,8 @@ enum DocumentOpener {
         Automation.shared.assumesTailscaleOff ? false : Tailnet.hasLocalInterface()
     })
 
+    private static var isShowingRejection = false
+
     static func open(_ source: DocumentSource) {
         switch source {
         case .file(let url):
@@ -199,6 +201,10 @@ enum DocumentOpener {
                 Automation.shared.linkWasRejected(reason)
                 return
             }
+            // 웹 페이지가 잘못된 링크를 연달아 열어도 경고창은 하나만 띄웁니다.
+            guard !isShowingRejection else { return }
+            isShowingRejection = true
+            defer { isShowingRejection = false }
             let alert = NSAlert()
             alert.messageText = "열 수 없는 링크입니다"
             alert.informativeText = reason

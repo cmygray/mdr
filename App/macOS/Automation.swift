@@ -248,6 +248,7 @@ final class Automation {
             metrics.merge(Self.sourceMetrics(controller)) { _, new in new }
             if followLink != nil { metrics["followLinkOpened"] = followLinkOpened }
             metrics["statusHistory"] = statusHistory
+            metrics["contextMenuActions"] = controller.readerController.contextMenuActionsAtFirstLink()
             if let outlineRow { metrics["outlineRowTitle"] = controller.outlineController.title(atRow: outlineRow) ?? "" }
             if !codeBlock.isEmpty { metrics["codeBlock"] = codeBlock }
             if !tableBlock.isEmpty { metrics["tableBlock"] = tableBlock }

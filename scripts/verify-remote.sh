@@ -259,6 +259,10 @@ check("새 링크로 열면 죽은 링크의 창을 닫고 자리를 이어받�
       and relink.get("feedState") == "live" and relink.get("topCharacterIndex") == p1.get("topCharacterIndex"),
       f'열린 문서 {relink.get("documentCount")}개(새 링크의 문서), 상태 {relink.get("feedState")}, 읽던 자리 {relink.get("topCharacterIndex")}("{relink.get("topHeading")}")')
 
+menu_actions = m.get("contextMenuActions")
+check("오른쪽 단추 메뉴에 링크를 여는 항목이 없음", isinstance(menu_actions, list) and menu_actions and set(menu_actions) <= {"copy:", "copyLink:", "selectAll:", "_lookUpDefiniteRangeInDictionaryFromMenu:", "_lookUpIndefiniteRangeInDictionaryFromMenu:"},
+      f'첫 링크 위에서의 메뉴 항목: {menu_actions}')
+
 print("가져오지 못할 때의 안내")
 recover = load("recover.json")
 check("Tailscale이 켜지면 자동으로 다시 시도해 엶", recover.get("statusHistory") == ["Tailscale 연결이 필요합니다"] and recover.get("feedState") == "live"

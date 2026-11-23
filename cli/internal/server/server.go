@@ -312,8 +312,9 @@ func etagFor(info fs.FileInfo) string {
 
 // docID는 문서의 변하지 않는 이름표입니다. 앱이 읽던 자리를 기억하는 키로 씁니다.
 // token은 서버가 다시 뜨면 바뀌므로 키로 쓸 수 없고, 절대 경로를 그대로 내보내지 않으려고 해시합니다.
+// 문서의 전체 경로로 만들기 때문에, 문서 폴더를 `--root`로 넓혀 열어도 같은 문서는 같은 이름표를 갖습니다.
 func docID(rootPath, rel string) string {
-	sum := sha256.Sum256([]byte("mdr-doc\x00" + rootPath + "\x00" + rel))
+	sum := sha256.Sum256([]byte("mdr-doc\x00" + path.Join(filepath.ToSlash(rootPath), rel)))
 	return hex.EncodeToString(sum[:16])
 }
 
