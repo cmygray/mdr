@@ -181,6 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         submenu("보기") { menu in
             add(menu, "사이드바 보기/가리기", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control])
+            add(menu, "돌아가기", #selector(ReaderViewController.goBack(_:)), "[")
             menu.addItem(.separator())
             add(menu, "글자 크게", #selector(zoomIn(_:)), "+", target: self)
             add(menu, "글자 작게", #selector(zoomOut(_:)), "-", target: self)

@@ -1,5 +1,10 @@
 import AppKit
 import MdrKit
+import os
+
+/// 스크롤이 저절로 맨 위로 튀는 문제(원인 미상)를 잡기 위한 진단 로그입니다.
+/// 보기: log show --last 30m --predicate 'subsystem == "kim.two.mdr" AND category == "scroll"' --info
+let scrollLog = Logger(subsystem: "kim.two.mdr", category: "scroll")
 
 /// 읽던 자리입니다. 픽셀이 아니라 글자 위치로 기억해서, 폭이나 글자 크기가 바뀌어도 같은 곳으로 돌아갑니다.
 struct ReadingAnchor: Equatable {
@@ -177,6 +182,10 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     private var laidOutWidth: CGFloat = 0
     private var isAdjustingScroll = false
     private var renderedScheme: ColorScheme?
+    /// 직전에 본 스크롤 위치(점프 감지용)
+    private var observedScrollY: CGFloat = 0
+    /// 문서 안 링크(목차가 아닌 본문의 `#제목`, 각주)로 이동하기 전의 자리들
+    private var backStack: [ReadingAnchor] = []
 
     // MARK: View
 
@@ -271,6 +280,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         super.viewDidLayout()
         let width = scrollView.contentSize.width
         guard width > 0, abs(width - laidOutWidth) > 0.5 else { return }
+        scrollLog.info("width \(Double(self.laidOutWidth)) -> \(Double(width))")
         let isFirstLayout = laidOutWidth == 0
         laidOutWidth = width
         if isFirstLayout {
@@ -301,6 +311,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     // MARK: Rendering
 
     func display(_ document: Document, restoring anchor: ReadingAnchor?) {
+        scrollLog.info("display restoring=\(anchor?.index ?? -1)")
         self.document = document
         render()
         if let anchor {
@@ -311,6 +322,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
 
     /// 문서 내용이나 스타일이 바뀌었을 때 읽던 자리를 지키며 다시 그립니다.
     func rerender() {
+        scrollLog.info("rerender y=\(Double(self.scrollView.contentView.bounds.minY))")
         // 가려던 자리(`lastAnchor`)를 기준으로 삼습니다. 원격 이미지가 도착하기 전에는 문서가 실제보다 짧아
         // 지금 보이는 곳이 가려던 곳보다 위에 잘려 있을 수 있습니다.
         var anchor = lastAnchor ?? currentAnchor()
@@ -353,9 +365,15 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         textView.selectedTextAttributes = [
             .backgroundColor: NSColor.selectedTextBackgroundColor,
         ]
-        textView.textContentStorage?.performEditingTransaction {
-            textView.textContentStorage?.textStorage?.setAttributedString(rendered.text)
+        // 각주 참조 위에 마우스를 올리면 정의 글을 툴팁으로 보여 줍니다(`.toolTip`은 AppKit 전용이라 여기서 붙입니다).
+        let text = NSMutableAttributedString(attributedString: rendered.text)
+        text.enumerateAttribute(.mdrFootnoteText, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            if let tip = value as? String { text.addAttribute(.toolTip, value: tip, range: range) }
         }
+        textView.textContentStorage?.performEditingTransaction {
+            textView.textContentStorage?.textStorage?.setAttributedString(text)
+        }
+        backStack.removeAll()
         updateInsets()
 
         errorLabel.stringValue = store.lastError.map { "  \($0)" } ?? ""
@@ -383,6 +401,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     }
 
     @objc private func styleDidChange() {
+        scrollLog.info("styleDidChange y=\(Double(self.scrollView.contentView.bounds.minY))")
         guard isViewLoaded, document != nil else { return }
         rerender()
     }
@@ -427,6 +446,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     }
 
     private func relayoutChangedImages() {
+        scrollLog.info("relayoutChangedImages y=\(Double(self.scrollView.contentView.bounds.minY))")
         let changed = Set(changedImages.map(ObjectIdentifier.init))
         changedImages.removeAll()
         guard !changed.isEmpty, let contentStorage = textView.textContentStorage, let storage = contentStorage.textStorage else { return }
@@ -451,6 +471,7 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     }
 
     private func appearanceDidChange() {
+        scrollLog.info("appearanceDidChange y=\(Double(self.scrollView.contentView.bounds.minY))")
         guard document != nil, let renderedScheme else { return }
         if StyleStore.shared.scheme(for: view.effectiveAppearance) != renderedScheme {
             rerender()
@@ -475,7 +496,8 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
     }
 
     /// `alignToFirstLine`이면 문단 위 여백을 건너뛰고 첫 줄을 화면 위쪽 가까이에 둡니다(목차 이동용).
-    func scroll(to anchor: ReadingAnchor, alignToFirstLine: Bool = false) {
+    func scroll(to anchor: ReadingAnchor, alignToFirstLine: Bool = false, caller: String = #function, line: Int = #line) {
+        scrollLog.info("scroll(to:) index=\(anchor.index) delta=\(Double(anchor.delta)) align=\(alignToFirstLine) from \(caller, privacy: .public):\(line)")
         guard let layoutManager = textView.textLayoutManager,
               let storage = textView.textContentStorage else { return }
         let length = storage.textStorage?.length ?? 0
@@ -532,7 +554,25 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         scroll(to: ReadingAnchor(index: index, delta: 0), alignToFirstLine: true)
     }
 
+    /// 문서 안 링크로 이동하기 전 자리로 돌아갑니다(⌘[).
+    @objc func goBack(_ sender: Any?) {
+        guard let anchor = backStack.popLast() else { NSSound.beep(); return }
+        scroll(to: anchor)
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(goBack(_:)) { return !backStack.isEmpty }
+        return true
+    }
+
     @objc private func clipBoundsDidChange() {
+        let y = scrollView.contentView.bounds.minY
+        if observedScrollY > 200, y < 1 {
+            // 맨 위로 점프했습니다. 누가 움직였는지 호출 경로를 남깁니다.
+            let stack = Thread.callStackSymbols.prefix(40).joined(separator: "\n")
+            scrollLog.fault("JUMP-TO-TOP from y=\(Double(self.observedScrollY)) adjusting=\(self.isAdjustingScroll) held=\(self.heldAnchor != nil) last=\(self.lastAnchor?.index ?? -1)\n\(stack, privacy: .public)")
+        }
+        observedScrollY = y
         guard !isAdjustingScroll, heldAnchor == nil, abs(scrollView.contentSize.width - laidOutWidth) < 0.5,
               let anchor = currentAnchor() else { return }
         lastAnchor = anchor
@@ -595,6 +635,9 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         switch LinkPolicy.action(for: url, in: document?.source) {
         case .anchor(let name):
             if let index = rendered?.anchors[name] {
+                // 떠나는 자리를 기억해 두고, ⌘[로 돌아올 수 있게 합니다.
+                if let here = currentAnchor() { backStack.append(here) }
+                if backStack.count > 50 { backStack.removeFirst() }
                 scroll(toCharacterIndex: index)
             }
         case .openExternally(let target):
@@ -613,3 +656,5 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         return true
     }
 }
+
+extension ReaderViewController: NSMenuItemValidation {}

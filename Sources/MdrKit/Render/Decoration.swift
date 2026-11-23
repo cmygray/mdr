@@ -11,6 +11,10 @@ public extension NSAttributedString.Key {
     static let mdrDecoration = NSAttributedString.Key("mdr.decoration")
     /// 인라인 코드 배경(`InlineCodeDecoration`)
     static let mdrInlineCode = NSAttributedString.Key("mdr.inlineCode")
+    /// 각주 참조의 라벨(`[^label]`). 렌더링 끝에 정의 글과 돌아올 자리를 잇는 데 씁니다.
+    static let mdrFootnoteReference = NSAttributedString.Key("mdr.footnoteReference")
+    /// 각주 참조에 붙인 정의 글. 앱이 호버 툴팁으로 보여 줍니다.
+    static let mdrFootnoteText = NSAttributedString.Key("mdr.footnoteText")
 }
 
 /// 글자가 아닌, 문단에 붙는 그림 요소입니다. `DecoratedLayoutFragment`가 읽어서 그립니다.

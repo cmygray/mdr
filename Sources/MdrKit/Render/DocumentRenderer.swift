@@ -37,6 +37,8 @@ public final class DocumentRenderer {
     private let output = NSMutableAttributedString()
     private var outline: [OutlineItem] = []
     private var anchors: [String: Int] = [:]
+    /// 각주 라벨별 정의 글(툴팁용)
+    private var footnoteTexts: [String: String] = [:]
     private var slugCounts: [String: Int] = [:]
     private let environment = BlockLayoutEnvironment()
     private var previousBottomMargin: CGFloat?
@@ -81,6 +83,7 @@ public final class DocumentRenderer {
             })
         }
         render(document.blocks, in: Context(color: style.palette.text))
+        linkFootnotes()
         // 마지막 줄바꿈은 문서 끝에 빈 줄을 하나 더 만듭니다.
         if output.length > 0, (output.string as NSString).character(at: output.length - 1) == 0x0A {
             output.deleteCharacters(in: NSRange(location: output.length - 1, length: 1))
@@ -447,8 +450,31 @@ public final class DocumentRenderer {
         var markerStyle = text
         markerStyle.color = style.palette.marker
         let line = NSMutableAttributedString(string: "\t\(marker)\t", attributes: attributes(for: markerStyle))
-        append(content, to: line, style: text)
+        let body = NSMutableAttributedString()
+        append(content, to: body, style: text)
+        footnoteTexts[label] = body.string
+            .replacingOccurrences(of: "\u{FFFC}", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        line.append(body)
+        // 정의에서 본문의 참조 자리로 돌아가는 링크입니다. 참조가 없으면 누를 곳이 없어 아무 일도 하지 않습니다.
+        var back = text
+        back.color = style.palette.marker
+        back.link = linkValue(for: "#fnref-\(label)")
+        line.append(NSAttributedString(string: " \u{21A9}\u{FE0E}", attributes: attributes(for: back)))
         endParagraph(line)
+    }
+
+    /// 각주 참조마다 정의 글을 붙이고, 각 라벨의 첫 참조 자리를 `fnref-라벨`로 기록합니다.
+    /// 참조가 정의보다 앞에 나오므로 문서를 다 만든 뒤에 합니다.
+    private func linkFootnotes() {
+        guard output.length > 0 else { return }
+        output.enumerateAttribute(.mdrFootnoteReference, in: NSRange(location: 0, length: output.length)) { value, range, _ in
+            guard let label = value as? String else { return }
+            if anchors["fnref-\(label)"] == nil { anchors["fnref-\(label)"] = range.location }
+            if let text = footnoteTexts[label], !text.isEmpty {
+                output.addAttribute(.mdrFootnoteText, value: text, range: range)
+            }
+        }
     }
 
     // MARK: - Emission
@@ -642,7 +668,9 @@ public final class DocumentRenderer {
                 inner.size = (text.size * 0.75).rounded()
                 inner.shift = text.shift + text.size * 0.36
                 inner.link = linkValue(for: "#fn-\(label)")
-                target.append(NSAttributedString(string: label, attributes: attributes(for: inner)))
+                let reference = NSMutableAttributedString(string: label, attributes: attributes(for: inner))
+                reference.addAttribute(.mdrFootnoteReference, value: label, range: NSRange(location: 0, length: reference.length))
+                target.append(reference)
             case .image(let ref):
                 if let attachment = imageAttachment(for: ref) {
                     let string = NSMutableAttributedString(attachment: attachment)

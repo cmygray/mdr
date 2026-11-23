@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let feedLog = Logger(subsystem: "kim.two.mdr", category: "scroll")
 
 /// 문서의 한 시점 내용입니다.
 public struct DocumentSnapshot {
@@ -193,6 +196,7 @@ public final class RemoteDocumentFeed: DocumentFeed {
                         // 연결 직후의 `hello`는, 문서를 받은 뒤 연결하기까지 사이에 바뀐 것을 잡아 줍니다.
                         if current != etag { try await refresh() }
                     case .ping:
+                        feedLog.debug("ping")
                         break
                     }
                 }
@@ -214,6 +218,7 @@ public final class RemoteDocumentFeed: DocumentFeed {
         documentID = file.documentID ?? documentID
         hostName = file.hostName ?? hostName
         // 저장만 다시 한 경우처럼 내용이 같으면 다시 그리지 않습니다.
+        feedLog.info("refresh etag changed, same data=\(file.data == self.loaded)")
         guard file.data != loaded else { return }
         let isFirst = loaded == nil
         loaded = file.data

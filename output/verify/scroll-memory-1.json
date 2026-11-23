@@ -50,7 +50,7 @@
   "feedState" : "live",
   "fontScale" : 1,
   "footnoteCount" : 8,
-  "fullLayoutMs" : 26.300000000000001,
+  "fullLayoutMs" : 26.600000000000001,
   "headings" : [
     {
       "gapAbove" : -1,
@@ -246,21 +246,21 @@
     1200
   ],
   "launchMs" : {
-    "appInit" : 35,
-    "didFinishLaunching" : 198.80000000000001,
-    "displayed" : 166.69999999999999,
-    "fontsRegistered" : 39,
+    "appInit" : 29,
+    "didFinishLaunching" : 60.899999999999999,
+    "displayed" : 152.69999999999999,
+    "fontsRegistered" : 33.100000000000001,
     "main" : 6.5,
-    "parsed" : 66.299999999999997,
-    "read" : 62.200000000000003,
-    "rendered" : 156.69999999999999,
-    "renderStart" : 137.30000000000001,
-    "tokensLoaded" : 39.799999999999997,
-    "willFinishLaunching" : 42.5,
-    "windowInitEnd" : 131.59999999999999,
-    "windowInitStart" : 87.099999999999994,
-    "windowReady" : 137.30000000000001,
-    "windowShown" : 195.69999999999999
+    "parsed" : 63.799999999999997,
+    "read" : 59.5,
+    "rendered" : 142.40000000000001,
+    "renderStart" : 123.90000000000001,
+    "tokensLoaded" : 34,
+    "willFinishLaunching" : 36.600000000000001,
+    "windowInitEnd" : 119.5,
+    "windowInitStart" : 83.5,
+    "windowReady" : 123.8,
+    "windowShown" : 181.30000000000001
   },
   "measure" : 496,
   "measuredBodyLineHeights" : [
@@ -293,7 +293,7 @@
     158,
     44
   ],
-  "textLength" : 9747,
+  "textLength" : 9771,
   "tokenError" : "",
   "tokenReloads" : 0,
   "topCharacterIndex" : 5272,

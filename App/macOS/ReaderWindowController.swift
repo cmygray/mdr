@@ -159,6 +159,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     func documentDidReload() {
+        scrollLog.info("documentDidReload")
         readerController.rerender()
     }
 
@@ -170,6 +171,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     /// 문서를 가져오는 상태가 바뀌었습니다. 아직 받은 것이 없으면 본문 자리에, 받은 뒤라면 창 아래 띠로 알립니다.
     func feedStateDidChange(_ state: FeedState) {
+        scrollLog.info("feed state \(String(describing: state), privacy: .public)")
         switch state {
         case .loading:
             // 금방 도착하면 안내가 깜빡이기만 합니다. 조금 기다린 뒤에도 받지 못했을 때만 보여 줍니다.

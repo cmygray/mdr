@@ -68,6 +68,23 @@ final class StyleTokensTests: XCTestCase {
 }
 
 final class RendererTests: XCTestCase {
+    func testFootnoteReferenceCarriesDefinitionAndBackAnchor() {
+        let (rendered, _) = render("본문[^4]에 따라.\n\n두 번째[^4].\n\n[^4]: S. Schulhoff, *The Prompt Report*.")
+        let text = rendered.text.string as NSString
+        let reference = text.range(of: "4")
+        // 첫 참조 자리가 돌아올 곳입니다.
+        XCTAssertEqual(rendered.anchors["fnref-4"], reference.location)
+        XCTAssertEqual(rendered.text.attribute(.mdrFootnoteText, at: reference.location, effectiveRange: nil) as? String,
+                       "S. Schulhoff, The Prompt Report.")
+        // 두 번째 참조에도 툴팁 글이 붙습니다.
+        let second = text.range(of: "4", options: [], range: NSRange(location: reference.location + 1, length: text.length - reference.location - 1))
+        XCTAssertNotNil(rendered.text.attribute(.mdrFootnoteText, at: second.location, effectiveRange: nil))
+        // 정의 끝의 돌아가기 링크
+        let back = text.range(of: "\u{21A9}", options: .literal)
+        XCTAssertNotEqual(back.location, NSNotFound)
+        XCTAssertNotNil(rendered.text.attribute(.link, at: back.location, effectiveRange: nil))
+    }
+
     private func render(_ source: String, script: Script = .hangul) -> (RenderedDocument, ResolvedStyle) {
         let style = ResolvedStyle(tokens: .bundled, options: RenderOptions(script: script))
         let rendered = DocumentRenderer(style: style, baseURL: nil).render(MarkdownParser.parse(source))
