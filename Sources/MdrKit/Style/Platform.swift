@@ -18,6 +18,22 @@ typealias StringDrawingOptions = NSStringDrawingOptions
 #endif
 
 extension PlatformColor {
+    /// 색 토큰 값을 색으로 바꿉니다. `"accent"`는 시스템 강조색(macOS 시스템 설정 › 모양 › 강조 색상)이고,
+    /// 그 밖에는 `#RRGGBB`·`#RRGGBBAA`입니다. 강조색은 동적 색이라 사용자가 바꾸면 그릴 때 새 색이 됩니다.
+    static func token(_ string: String) -> PlatformColor? {
+        if string.trimmingCharacters(in: .whitespaces).lowercased() == "accent" { return .mdrAccent }
+        return hex(string)
+    }
+
+    /// 시스템 강조색
+    static var mdrAccent: PlatformColor {
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        return .controlAccentColor
+        #else
+        return .tintColor
+        #endif
+    }
+
     /// `#RRGGBB` 또는 `#RRGGBBAA`. 읽을 수 없으면 nil입니다.
     static func hex(_ string: String) -> PlatformColor? {
         var value = string.trimmingCharacters(in: .whitespaces)

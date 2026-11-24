@@ -293,6 +293,9 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
 
         NotificationCenter.default.addObserver(self, selector: #selector(styleDidChange),
                                                name: StyleStore.didChange, object: nil)
+        // 시스템 강조색이 바뀌면 다시 그립니다. 링크 색이 기본값(`accent`)이면 새 강조색을 따릅니다.
+        NotificationCenter.default.addObserver(self, selector: #selector(styleDidChange),
+                                               name: NSColor.systemColorsDidChangeNotification, object: nil)
     }
 
     override func viewDidLayout() {

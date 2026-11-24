@@ -76,7 +76,7 @@ public final class ResolvedStyle {
         let colors = options.scheme == .dark ? tokens.colors.dark : tokens.colors.light
         self.colors = colors
         func color(_ hex: String, _ fallback: PlatformColor) -> PlatformColor {
-            PlatformColor.hex(hex) ?? fallback
+            PlatformColor.token(hex) ?? fallback
         }
         palette = Palette(
             background: color(colors.background, .white),
@@ -134,10 +134,10 @@ public final class ResolvedStyle {
         return tokens.headings[index]
     }
 
-    /// 토큰의 색 이름(`heading`, `secondaryText` 등) 또는 `#RRGGBB`를 색으로 바꿉니다.
+    /// 토큰의 색 이름(`heading`, `secondaryText` 등) 또는 `#RRGGBB`, `accent`를 색으로 바꿉니다.
     public func color(named name: String) -> PlatformColor {
         if let cached = namedColors[name] { return cached }
-        let color = PlatformColor.hex(colors.hex(named: name)) ?? palette.text
+        let color = PlatformColor.token(colors.hex(named: name)) ?? palette.text
         namedColors[name] = color
         return color
     }

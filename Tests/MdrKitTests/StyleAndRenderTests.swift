@@ -68,6 +68,14 @@ final class StyleTokensTests: XCTestCase {
 }
 
 final class RendererTests: XCTestCase {
+    func testLinkColorFollowsSystemAccent() {
+        let style = ResolvedStyle(tokens: .bundled, options: RenderOptions())
+        XCTAssertEqual(style.palette.link, PlatformColor.mdrAccent)
+        XCTAssertEqual(PlatformColor.token(" Accent "), PlatformColor.mdrAccent)
+        XCTAssertNotNil(PlatformColor.token("#0B62D6"))
+        XCTAssertNil(PlatformColor.token("blue"))
+    }
+
     func testFootnoteReferenceCarriesDefinitionAndBackAnchor() {
         let (rendered, _) = render("본문[^4]에 따라.\n\n두 번째[^4].\n\n[^4]: S. Schulhoff, *The Prompt Report*.")
         let text = rendered.text.string as NSString

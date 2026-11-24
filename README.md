@@ -156,7 +156,7 @@ mdr stop                     # 서버를 끝냅니다. 이전에 출력한 링�
 - `lineHeight`: 그 요소 글자 크기의 배수
 - `spacing`, `spaceBefore`, `spaceAfter`, `indent`, `measure`: 본문 글자 크기(em)의 배수
 - `padding*`, `cornerRadius`, `*Width`, `thickness`, `pageMargin`, `pagePaddingY`: pt
-- 색: `#RRGGBB` 또는 `#RRGGBBAA`
+- 색: `#RRGGBB`, `#RRGGBBAA`, 또는 `accent`(시스템 강조색. 시스템 설정 › 모양 › 강조 색상을 따릅니다. 기본 링크 색이 이것입니다)
 
 자주 고칠 키입니다.
 
