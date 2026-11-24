@@ -155,8 +155,16 @@ private final class OutlineCellView: NSTableCellView {
         applyStyle()
     }
 
+    /// 줄이 선택되어 배경이 강조색으로 칠해지면 `.emphasized`가 됩니다. 그때 글자를 강조색으로 두면 배경에 묻힙니다.
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet { applyStyle() }
+    }
+
     private func applyStyle() {
-        if isCurrent {
+        if backgroundStyle == .emphasized {
+            label.font = .systemFont(ofSize: 13, weight: isCurrent ? .semibold : (depth == 0 ? .medium : .regular))
+            label.textColor = .alternateSelectedControlTextColor
+        } else if isCurrent {
             label.font = .systemFont(ofSize: 13, weight: .semibold)
             label.textColor = .controlAccentColor
         } else {
