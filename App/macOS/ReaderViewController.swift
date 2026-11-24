@@ -242,6 +242,9 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(clipBoundsDidChange),
                                                name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
+        scrollView.contentView.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(contentSizeMayHaveChanged),
+                                               name: NSView.frameDidChangeNotification, object: scrollView.contentView)
 
         errorLabel.translatesAutoresizingMaskIntoConstraints = false
         errorLabel.font = .systemFont(ofSize: 12)
@@ -300,6 +303,14 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
 
     override func viewDidLayout() {
         super.viewDidLayout()
+        contentSizeMayHaveChanged()
+    }
+
+    /// 스크롤 영역의 크기가 바뀌었을 때 부릅니다. `viewDidLayout`만으로는 부족합니다. 스크롤바가 "항상 보기"이면
+    /// 세로 스크롤바가 나타나며 본문 폭이 15pt쯤 줄어드는데, 그때 view controller의 배치는 다시 돌지 않습니다.
+    /// 그러면 기억한 폭과 실제 폭이 어긋난 채로 남아 사용자 스크롤이 읽던 자리로 기록되지 않고,
+    /// 다음에 배치가 돌 때 낡은 자리(문서 맨 앞)로 되돌아갑니다(2026-11-24 다른 Mac에서 확인).
+    @objc private func contentSizeMayHaveChanged() {
         let width = scrollView.contentSize.width
         // 높이만 바뀌었으면 문서 끝 아래 여유만 다시 맞춥니다(읽던 자리에는 영향이 없습니다).
         if width > 0, abs(width - laidOutWidth) <= 0.5, abs(scrollView.contentView.bounds.height - laidOutHeight) > 0.5 {
@@ -711,7 +722,11 @@ final class ReaderViewController: NSViewController, NSTextViewDelegate {
             scrollLog.fault("JUMP-TO-TOP from y=\(Double(self.observedScrollY)) adjusting=\(self.isAdjustingScroll) held=\(self.heldAnchor != nil) last=\(self.lastAnchor?.index ?? -1)\n\(stack, privacy: .public)")
         }
         observedScrollY = y
-        guard !isAdjustingScroll, heldAnchor == nil, abs(scrollView.contentSize.width - laidOutWidth) < 0.5,
+        let widthMismatch = abs(scrollView.contentSize.width - laidOutWidth) >= 0.5
+        if !isAdjustingScroll, heldAnchor == nil, widthMismatch {
+            scrollLog.info("position not recorded: contentWidth=\(Double(self.scrollView.contentSize.width)) laidOut=\(Double(self.laidOutWidth)) y=\(Double(y))")
+        }
+        guard !isAdjustingScroll, heldAnchor == nil, !widthMismatch,
               let anchor = currentAnchor() else { return }
         lastAnchor = anchor
         onPositionChange?(anchor)

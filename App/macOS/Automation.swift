@@ -46,6 +46,7 @@ enum LaunchClock {
 ///
 /// 원격 문서는 파일 대신 `-url "mdr://..."`로 엽니다.
 /// - `-assumeTailscale off`: Tailscale이 꺼진 것처럼 동작합니다. `off:2`는 시작 후 2초 동안만 그렇게 합니다.
+/// - `-rawScroll 3000`: 사용자 스크롤처럼 스크롤 뷰를 직접 내린 뒤 메뉴 동작(`-perform`)을 합니다.
 /// - `-followLink "글자"`: 그 글자가 든 첫 링크를 누른 뒤 새로 열린 문서를 찍습니다.
 /// - `-openLater 파일 [-openLaterAfter 3]`: 첫 문서를 연 뒤 3초 있다가, 그 파일에 적힌 링크를 엽니다
 ///   (서버가 다시 떠서 새 링크를 받은 경우의 검증용). 새로 열린 문서를 찍습니다.
@@ -58,6 +59,8 @@ final class Automation {
     private(set) var appearance: ReaderSettings.Appearance?
     private(set) var scrollHeading: String?
     private(set) var scrollFraction: Double?
+    /// mdr의 `scroll(to:)`를 거치지 않고 스크롤 뷰를 직접 이만큼(pt) 내립니다. 사용자 스크롤과 같은 경로입니다.
+    private(set) var rawScroll: CGFloat?
     private(set) var sidebarVisible: Bool?
     private(set) var fontScale: Double?
     private(set) var wait: TimeInterval = 0.5
@@ -125,6 +128,7 @@ final class Automation {
             case "-tableScroll": tableScroll = Double(value).map { CGFloat($0) }
             case "-outlineRow": outlineRow = Int(value)
             case "-perform": menuActions = value.split(separator: ",").map(String.init)
+            case "-rawScroll": rawScroll = Double(value).map { CGFloat($0) }
             case "-url": remoteLink = URL(string: value)
             case "-assumeTailscale":
                 let parts = value.split(separator: ":")
@@ -199,7 +203,15 @@ final class Automation {
 
     private func proceed(_ controller: ReaderWindowController) {
         let reader = controller.readerController
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
+        if let rawScroll {
+            // 사용자처럼 스크롤한 뒤 조금 기다렸다가 메뉴 동작을 합니다.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                let clip = reader.scrollView.contentView
+                clip.scroll(to: NSPoint(x: 0, y: rawScroll))
+                reader.scrollView.reflectScrolledClipView(clip)
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (rawScroll == nil ? 0.15 : 0.6)) { [self] in
             for name in menuActions {
                 Self.performMenuItem(action: NSSelectorFromString(name), in: controller.window)
             }

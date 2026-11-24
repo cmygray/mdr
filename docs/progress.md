@@ -547,5 +547,5 @@ Rex 팬을 하나 새로 만들어(`rex run --split`) 그 안에서 `mdr fixture
 
 남은 일
 
-- **스크롤이 저절로 맨 위로 튀는 문제(원인·재현 조건 미상).** 진단 로그를 넣었습니다. 다시 일어나면 그 Mac에서 `log show --last 30m --info --predicate 'subsystem == "kim.two.mdr" AND category == "scroll"'`를 읽습니다. 맨 위로 점프한 순간은 `JUMP-TO-TOP` fault와 호출 경로로 남습니다. 감지기가 실제 점프에서 기록하는지는 아직 확인하지 못했습니다.
+- **스크롤이 저절로 맨 위로 튀는 문제: 원인을 찾아 고쳤습니다(2026-11-24).** 다른 Mac의 진단 로그에 "맨 위로 점프"가 11건 있었습니다. 7건은 트랙패드 입력이었고, 4건은 mdr 코드가 일으켰습니다. 그 Mac은 스크롤바가 "항상 보기"입니다. 세로 스크롤바가 나타나면 본문 폭이 17pt 줄어드는데, `viewDidLayout`이 돌지 않아 기억한 폭과 실제 폭이 어긋난 채로 남았습니다. 그동안의 사용자 스크롤은 "폭이 바뀌는 중"으로 판단돼 읽던 자리로 기록되지 않았습니다. 다음에 배치가 돌면 낡은 자리(문서 맨 앞)를 붙잡아 그리로 되돌렸습니다. 이제 스크롤 영역의 크기가 바뀌는 순간(`NSView.frameDidChangeNotification`)에도 폭 변화를 처리합니다. 재현과 확인은 `-AppleShowScrollBars Always -rawScroll 4000 -perform toggleSidebar:`로 합니다. 고치기 전에는 맨 위로 갔고, 고친 뒤에는 6433번 글자를 지켰습니다. 진단 로그는 남겨 둡니다.
 - `scripts/verify-remote.sh`는 서버와 같은 Mac에서 Debug 앱으로만 확인합니다. 다른 Mac에서 Release 앱으로 확인하는 단계가 없어 ATS 문제를 놓쳤습니다.
